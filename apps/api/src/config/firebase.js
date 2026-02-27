@@ -12,9 +12,18 @@ export function initializeFirebase() {
   if (db) return db;
 
   try {
-    // Load service account from file
-    const serviceAccountPath = join(__dirname, '../../firebase-service-account.json');
-    const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+    let serviceAccount;
+
+    // Try to load from environment variable first (for production)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      console.log('Loading Firebase credentials from environment variable...');
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+      // Fall back to file (for local development)
+      console.log('Loading Firebase credentials from file...');
+      const serviceAccountPath = join(__dirname, '../../firebase-service-account.json');
+      serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
