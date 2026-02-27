@@ -1,0 +1,140 @@
+═══════════════════════════════════════════════════════════════════════════
+  API QUICK REFERENCE CARD
+═══════════════════════════════════════════════════════════════════════════
+
+BASE URL: http://localhost:3001
+
+═══════════════════════════════════════════════════════════════════════════
+  PUBLIC ENDPOINTS
+═══════════════════════════════════════════════════════════════════════════
+
+REGISTER
+────────────────────────────────────────────────────────────────────────────
+POST /api/register
+Body: { fullName, mobile, model, branch, purpose }
+Returns: { ticketId, queueNo }
+Rate Limit: 10 per 15 min
+
+curl -X POST http://localhost:3001/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"fullName":"John","mobile":"+1234567890","model":"Tesla","branch":"MAIN","purpose":"TEST_DRIVE"}'
+
+GET TICKET
+────────────────────────────────────────────────────────────────────────────
+GET /api/ticket/:id
+Returns: Full ticket details
+
+curl http://localhost:3001/api/ticket/507f1f77bcf86cd799439011
+
+GET QUEUE
+────────────────────────────────────────────────────────────────────────────
+GET /api/queue?branch=MAIN
+Returns: { currentServing, nextUp[], waitingCount, lastUpdated }
+
+curl "http://localhost:3001/api/queue?branch=MAIN"
+
+GET BRANCHES
+────────────────────────────────────────────────────────────────────────────
+GET /api/branches
+Returns: List of active branches
+
+curl http://localhost:3001/api/branches
+
+═══════════════════════════════════════════════════════════════════════════
+  STAFF ENDPOINTS (Requires X-Staff-Pin: 1234)
+═══════════════════════════════════════════════════════════════════════════
+
+AUTH
+────────────────────────────────────────────────────────────────────────────
+POST /api/staff/auth
+Body: { pin }
+
+curl -X POST http://localhost:3001/api/staff/auth \
+  -H "Content-Type: application/json" \
+  -d '{"pin":"1234"}'
+
+GET TICKETS
+────────────────────────────────────────────────────────────────────────────
+GET /api/staff/tickets?branch=MAIN
+
+curl http://localhost:3001/api/staff/tickets?branch=MAIN \
+  -H "X-Staff-Pin: 1234"
+
+CALL NEXT
+────────────────────────────────────────────────────────────────────────────
+POST /api/staff/call-next
+Body: { branch }
+
+curl -X POST http://localhost:3001/api/staff/call-next \
+  -H "Content-Type: application/json" \
+  -H "X-Staff-Pin: 1234" \
+  -d '{"branch":"MAIN"}'
+
+CALL SPECIFIC
+────────────────────────────────────────────────────────────────────────────
+POST /api/staff/call-specific
+Body: { queueNo }
+
+curl -X POST http://localhost:3001/api/staff/call-specific \
+  -H "Content-Type: application/json" \
+  -H "X-Staff-Pin: 1234" \
+  -d '{"queueNo":"A-001"}'
+
+MARK DONE
+────────────────────────────────────────────────────────────────────────────
+POST /api/staff/mark-done
+Body: { queueNo }
+
+curl -X POST http://localhost:3001/api/staff/mark-done \
+  -H "Content-Type: application/json" \
+  -H "X-Staff-Pin: 1234" \
+  -d '{"queueNo":"A-001"}'
+
+MARK NO-SHOW
+────────────────────────────────────────────────────────────────────────────
+POST /api/staff/mark-no-show
+Body: { queueNo }
+
+curl -X POST http://localhost:3001/api/staff/mark-no-show \
+  -H "Content-Type: application/json" \
+  -H "X-Staff-Pin: 1234" \
+  -d '{"queueNo":"A-001"}'
+
+═══════════════════════════════════════════════════════════════════════════
+  RESPONSE FORMAT
+═══════════════════════════════════════════════════════════════════════════
+
+SUCCESS: { success: true, data: {...}, message: "..." }
+ERROR:   { success: false, error: "...", message: "..." }
+
+═══════════════════════════════════════════════════════════════════════════
+  STATUS CODES
+═══════════════════════════════════════════════════════════════════════════
+
+200 - Success
+201 - Created
+400 - Bad Request
+401 - Unauthorized
+404 - Not Found
+429 - Too Many Requests
+500 - Server Error
+
+═══════════════════════════════════════════════════════════════════════════
+  TESTING
+═══════════════════════════════════════════════════════════════════════════
+
+npm run test:api           - End-to-end API test
+npm run test:quick         - Quick queue test
+npm run test:concurrency   - Concurrency demo
+
+═══════════════════════════════════════════════════════════════════════════
+  DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════
+
+API_EXAMPLES.md                    - Complete cURL examples
+API_TESTING_GUIDE.md               - Testing guide
+API_IMPLEMENTATION_COMPLETE.txt    - Implementation summary
+QUEUE_SYSTEM_EXPLANATION.txt       - Concurrency explanation
+IMPLEMENTATION_SUMMARY.txt         - Models & services summary
+
+═══════════════════════════════════════════════════════════════════════════

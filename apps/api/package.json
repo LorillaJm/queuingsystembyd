@@ -1,0 +1,33 @@
+{
+  "name": "queue-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "init-db": "node src/scripts/init-database.js",
+    "init-firebase": "node src/scripts/init-firebase.js",
+    "seed:15": "node src/scripts/seed-15-per-model.js",
+    "test": "node src/tests/queueGenerator.test.js",
+    "test:quick": "node src/tests/quick-test.js",
+    "test:concurrency": "node src/tests/concurrency-demo.js",
+    "test:api": "node src/tests/api-e2e.test.js",
+    "test:db": "node src/tests/test-mongodb-connection.js"
+  },
+  "dependencies": {
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "firebase-admin": "^13.6.1",
+    "helmet": "^7.1.0",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
+    "socket.io": "^4.6.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

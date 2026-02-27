@@ -1,0 +1,1 @@
+monggo db cridentials- usernames- wavemobilejmlorilla_db_user- password - LLigxKWw6AU5LyzY

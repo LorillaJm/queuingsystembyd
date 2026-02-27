@@ -1,0 +1,243 @@
+═══════════════════════════════════════════════════════════════════════════
+  TICKET STATE TRANSITION RULES
+═══════════════════════════════════════════════════════════════════════════
+
+STATES
+──────────────────────────────────────────────────────────────────────────
+WAITING   - Customer registered, waiting to be called
+SERVING   - Customer is currently being served
+DONE      - Service completed successfully
+NOSHOW    - Customer didn't show up
+
+═══════════════════════════════════════════════════════════════════════════
+  STATE DIAGRAM
+═══════════════════════════════════════════════════════════════════════════
+
+                    ┌─────────┐
+                    │ WAITING │ (Initial state after registration)
+                    └────┬────┘
+                         │
+                         │ /staff/next
+                         │ /staff/call
+                         │
+                    ┌────▼────┐
+                    │ SERVING │ (Only ONE per branch)
+                    └────┬────┘
+                         │
+                    ┌────┴────┐
+                    │         │
+         /staff/mark-done     /staff/no-show
+                    │         │
+               ┌────▼───┐ ┌──▼─────┐
+               │  DONE  │ │ NOSHOW │ (Final states)
+               └────────┘ └────────┘
+
+Alternative path (skip calling):
+                    ┌─────────┐
+                    │ WAITING │
+                    └────┬────┘
+                         │
+                         │ /staff/no-show
+                         │
+                    ┌────▼─────┐
+                    │  NOSHOW  │
+                    └──────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+  TRANSITION TABLE
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────┬──────────┬─────────────────────┬──────────────────────────┐
+│ FROM     │ TO       │ ENDPOINT            │ RULE                     │
+├──────────┼──────────┼─────────────────────┼──────────────────────────┤
+│ WAITING  │ SERVING  │ /staff/next         │ Call oldest waiting      │
+│ WAITING  │ SERVING  │ /staff/call         │ Call specific ticket     │
+│ WAITING  │ NOSHOW   │ /staff/no-show      │ Mark without calling     │
+│ SERVING  │ DONE     │ /staff/mark-done    │ Service completed        │
+│ SERVING  │ NOSHOW   │ /staff/no-show      │ Customer left/no-show    │
+│ DONE     │ (none)   │ -                   │ Final state              │
+│ NOSHOW   │ (none)   │ -                   │ Final state              │
+└──────────┴──────────┴─────────────────────┴──────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+  VALID TRANSITIONS
+═══════════════════════════════════════════════════════════════════════════
+
+WAITING → SERVING    ✓ Valid (call customer)
+WAITING → NOSHOW     ✓ Valid (mark no-show without calling)
+SERVING → DONE       ✓ Valid (complete service)
+SERVING → NOSHOW     ✓ Valid (customer left)
+
+═══════════════════════════════════════════════════════════════════════════
+  INVALID TRANSITIONS (REJECTED)
+═══════════════════════════════════════════════════════════════════════════
+
+WAITING → DONE       ✗ Invalid (must call first)
+DONE → any state     ✗ Invalid (final state)
+NOSHOW → any state   ✗ Invalid (final state)
+SERVING → WAITING    ✗ Invalid (cannot uncall)
+
+═══════════════════════════════════════════════════════════════════════════
+  BRANCH RULE
+═══════════════════════════════════════════════════════════════════════════
+
+RULE: Only ONE ticket can be SERVING per branch at any time.
+
+When calling next or specific ticket:
+  1. Find all tickets with status=SERVING for that branch
+  2. Update them to status=DONE, set completedAt
+  3. Update target ticket to status=SERVING, set calledAt
+
+This ensures:
+  - No confusion about who is being served
+  - Clean queue state
+  - Previous customer is marked as done
+
+Example:
+  Branch MAIN has:
+    - A-001 (SERVING)
+    - A-002 (WAITING)
+    - A-003 (WAITING)
+
+  Call /staff/next with branch=MAIN:
+    - A-001 → DONE (previous serving)
+    - A-002 → SERVING (next waiting)
+    - A-003 → WAITING (unchanged)
+
+═══════════════════════════════════════════════════════════════════════════
+  TRANSACTION SAFETY
+═══════════════════════════════════════════════════════════════════════════
+
+All state transitions use MongoDB transactions to ensure:
+
+1. ATOMICITY
+   - All changes succeed together or all fail
+   - No partial updates
+
+2. CONSISTENCY
+   - Only one SERVING per branch maintained
+   - State transition rules enforced
+
+3. ISOLATION
+   - Concurrent requests don't interfere
+   - Each transaction sees consistent state
+
+4. DURABILITY
+   - Changes are persisted to database
+   - Survives server restarts
+
+Example transaction:
+  session.withTransaction(async () => {
+    // Step 1: Mark current SERVING as DONE
+    await updateMany({ status: 'SERVING' }, { status: 'DONE' });
+    
+    // Step 2: Update target to SERVING
+    await updateOne({ queueNo: 'A-002' }, { status: 'SERVING' });
+    
+    // If any step fails, entire transaction rolls back
+  });
+
+═══════════════════════════════════════════════════════════════════════════
+  ERROR HANDLING
+═══════════════════════════════════════════════════════════════════════════
+
+TICKET_NOT_FOUND
+  - Ticket doesn't exist
+  - Wrong branch
+  - Returns: 404 Not Found
+
+INVALID_TRANSITION
+  - Trying to move from DONE/NOSHOW
+  - Trying WAITING → DONE
+  - Returns: 400 Bad Request
+
+NO_TICKETS_IN_QUEUE
+  - No WAITING tickets available
+  - Returns: 404 Not Found
+
+═══════════════════════════════════════════════════════════════════════════
+  IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════════
+
+Location: apps/api/src/services/ticketService.js
+
+Key functions:
+  - callNextTicket(branch)
+  - callSpecificTicket(branch, queueNo)
+  - markTicketDone(branch, queueNo)
+  - markTicketNoShow(branch, queueNo)
+  - isValidTransition(fromStatus, toStatus)
+
+Validation:
+  const VALID_TRANSITIONS = {
+    WAITING: ['SERVING', 'NOSHOW'],
+    SERVING: ['DONE', 'NOSHOW'],
+    DONE: [],
+    NOSHOW: []
+  };
+
+═══════════════════════════════════════════════════════════════════════════
+  TESTING SCENARIOS
+═══════════════════════════════════════════════════════════════════════════
+
+Scenario 1: Normal Flow
+  1. Register → WAITING
+  2. Call next → SERVING
+  3. Mark done → DONE
+  ✓ All transitions valid
+
+Scenario 2: No-show Flow
+  1. Register → WAITING
+  2. Call next → SERVING
+  3. Mark no-show → NOSHOW
+  ✓ All transitions valid
+
+Scenario 3: Skip Calling
+  1. Register → WAITING
+  2. Mark no-show → NOSHOW
+  ✓ Valid (customer never showed)
+
+Scenario 4: Invalid Transition
+  1. Register → WAITING
+  2. Mark done → ERROR
+  ✗ Cannot move WAITING to DONE
+
+Scenario 5: Multiple Serving
+  1. A-001 → SERVING
+  2. Call A-002 → SERVING
+  Result: A-001 → DONE, A-002 → SERVING
+  ✓ Only one SERVING per branch
+
+Scenario 6: Final State
+  1. Ticket → DONE
+  2. Try to call → ERROR
+  ✗ Cannot change final state
+
+═══════════════════════════════════════════════════════════════════════════
+  SOCKET.IO EVENTS
+═══════════════════════════════════════════════════════════════════════════
+
+queue:updated
+  Emitted after: next, call, mark-done, no-show
+  Payload: { branch: 'MAIN' }
+  Purpose: Notify clients to refresh queue
+
+ticket:called
+  Emitted after: next, call
+  Payload: { queueNo: 'A-001', fullName: 'John', branch: 'MAIN' }
+  Purpose: Notify displays to show called ticket
+
+═══════════════════════════════════════════════════════════════════════════
+  BEST PRACTICES
+═══════════════════════════════════════════════════════════════════════════
+
+1. Always validate transitions before attempting
+2. Use transactions for state changes
+3. Emit Socket.io events after successful changes
+4. Handle errors gracefully with clear messages
+5. Log state transitions for audit trail
+6. Maintain only one SERVING per branch
+7. Mark previous SERVING as DONE when calling next
+8. Set timestamps (calledAt, completedAt) appropriately
+
+═══════════════════════════════════════════════════════════════════════════

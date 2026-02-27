@@ -1,0 +1,32 @@
+{
+  "name": "queue-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Queue management system with real-time updates",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "cd apps/api && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "install:all": "npm install && cd apps/api && npm install && cd ../web && npm install",
+    "build:web": "cd apps/web && npm run build",
+    "start:api": "cd apps/api && npm start",
+    "preview:web": "cd apps/web && npm run preview"
+  },
+  "keywords": [
+    "queue",
+    "registration",
+    "booking",
+    "real-time",
+    "socket.io",
+    "sveltekit",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "mongodb": "^7.1.0"
+  }
+}
