@@ -17,3 +17,7 @@ services:
         sync: false
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false
+      - key: CORS_ORIGIN
+        value: https://queuingsystembyd-web.vercel.app
+      - key: TZ
+        value: Asia/Manila

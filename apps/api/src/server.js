@@ -24,13 +24,16 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const TZ = process.env.TZ || 'Asia/Manila';
 
+// Parse CORS origins (support comma-separated list)
+const allowedOrigins = CORS_ORIGIN.split(',').map(origin => origin.trim());
+
 // Set timezone
 process.env.TZ = TZ;
 
 // Socket.io setup
 const io = new Server(httpServer, {
   cors: {
-    origin: CORS_ORIGIN,
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   },
@@ -46,7 +49,7 @@ app.use(helmet({
 
 // CORS
 app.use(cors({
-  origin: CORS_ORIGIN,
+  origin: allowedOrigins,
   credentials: true
 }));
 

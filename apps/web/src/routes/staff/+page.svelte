@@ -237,7 +237,11 @@
 
     <!-- Main Content -->
     <main class="flex-1 overflow-auto p-6">
-      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <!-- Queue Management Table -->
+      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <h2 class="text-lg font-bold text-gray-900">Queue Management</h2>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <thead class="bg-gray-50 sticky top-0">
@@ -304,6 +308,100 @@
                   </td>
                 </tr>
               {/each}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Customer Summary Table -->
+      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <h2 class="text-lg font-bold text-gray-900">Customer Summary</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr class="border-b border-gray-200">
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Queue #</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Full Name</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Mobile</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Vehicle Model</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">SC</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Test Drive</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Reservation</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each tickets.filter(t => t.status !== 'DONE' && t.status !== 'NOSHOW') as ticket (ticket.id)}
+                <tr in:fade={{ duration: 200 }} class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <!-- Queue Number -->
+                  <td class="px-4 py-3 align-middle">
+                    <span class="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 font-semibold text-xs">
+                      {ticket.queueNo}
+                    </span>
+                  </td>
+                  
+                  <!-- Full Name -->
+                  <td class="px-4 py-3 align-middle">
+                    <div class="font-medium text-gray-900">{ticket.fullName}</div>
+                  </td>
+                  
+                  <!-- Mobile -->
+                  <td class="px-4 py-3 align-middle">
+                    <div class="text-gray-600">{ticket.mobile || 'N/A'}</div>
+                  </td>
+                  
+                  <!-- Vehicle Model -->
+                  <td class="px-4 py-3 align-middle">
+                    <div class="text-gray-900">{ticket.model || 'N/A'}</div>
+                  </td>
+                  
+                  <!-- Sales Consultant -->
+                  <td class="px-4 py-3 align-middle">
+                    <div class="text-gray-600 text-xs">{ticket.salesConsultant || 'N/A'}</div>
+                  </td>
+                  
+                  <!-- Test Drive -->
+                  <td class="px-4 py-3 align-middle">
+                    {#if ticket.purpose && ticket.purpose.includes('TEST_DRIVE')}
+                      <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                        ✓ Yes
+                      </span>
+                    {:else}
+                      <span class="text-gray-400 text-xs">N/A</span>
+                    {/if}
+                  </td>
+                  
+                  <!-- Reservation -->
+                  <td class="px-4 py-3 align-middle">
+                    {#if ticket.purpose && ticket.purpose.includes('RESERVATION')}
+                      <span class="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-medium">
+                        ✓ Reserved
+                      </span>
+                    {:else}
+                      <span class="text-gray-400 text-xs">N/A</span>
+                    {/if}
+                  </td>
+                  
+                  <!-- Remarks -->
+                  <td class="px-4 py-3 align-middle">
+                    <input 
+                      type="text" 
+                      placeholder="Add remarks..."
+                      class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-transparent"
+                    />
+                  </td>
+                </tr>
+              {/each}
+              
+              {#if tickets.filter(t => t.status !== 'DONE' && t.status !== 'NOSHOW').length === 0}
+                <tr>
+                  <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                    No customers in queue
+                  </td>
+                </tr>
+              {/if}
             </tbody>
           </table>
         </div>
