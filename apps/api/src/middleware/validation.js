@@ -8,8 +8,8 @@ export const registrationValidation = [
     .withMessage('Full name is required')
     .isLength({ min: 2, max: 100 })
     .withMessage('Name must be between 2 and 100 characters')
-    .matches(/^[a-zA-Z\s'-]+$/)
-    .withMessage('Name can only contain letters, spaces, hyphens and apostrophes'),
+    .matches(/^[a-zA-Z0-9\s'-]+$/)
+    .withMessage('Name can only contain letters, numbers, spaces, hyphens and apostrophes'),
   
   body('mobile')
     .trim()
@@ -30,6 +30,12 @@ export const registrationValidation = [
     .isLength({ max: 100 })
     .withMessage('Model must be less than 100 characters'),
   
+  body('salesConsultant')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Sales consultant name must be between 2 and 100 characters'),
+  
   body('branch')
     .trim()
     .notEmpty()
@@ -42,8 +48,18 @@ export const registrationValidation = [
   
   body('purpose')
     .optional()
-    .isIn(['TEST_DRIVE', 'SERVICE', 'INQUIRY', 'PURCHASE'])
-    .withMessage('Invalid purpose. Must be TEST_DRIVE, SERVICE, INQUIRY, or PURCHASE')
+    .custom((value) => {
+      if (!value) return true;
+      // Allow single value or comma-separated values
+      const purposes = value.split(',').map(p => p.trim());
+      const validPurposes = ['CIS', 'TEST_DRIVE', 'RESERVATION'];
+      const allValid = purposes.every(p => validPurposes.includes(p));
+      if (!allValid) {
+        throw new Error('Invalid purpose. Must be CIS, TEST_DRIVE, or RESERVATION');
+      }
+      return true;
+    })
+    .withMessage('Invalid purpose. Must be CIS, TEST_DRIVE, or RESERVATION')
 ];
 
 // Queue number validation
@@ -51,8 +67,8 @@ export const queueNumberValidation = [
   body('queueNo')
     .notEmpty()
     .withMessage('Queue number is required')
-    .matches(/^[A-Z]+-\d{3}$/)
-    .withMessage('Invalid queue number format (must be PREFIX-NNN)')
+    .matches(/^\d{3}$/)
+    .withMessage('Invalid queue number format (must be NNN)')
 ];
 
 // Branch validation (for body)

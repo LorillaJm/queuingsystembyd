@@ -23,7 +23,7 @@ export async function register(req, res) {
       });
     }
 
-    const { fullName, mobile, carId, model, branch, purpose = 'TEST_DRIVE' } = req.body;
+    const { fullName, mobile, carId, model, salesConsultant, branch, purpose = 'TEST_DRIVE' } = req.body;
 
     // Validate branch exists and is active
     const branchExists = await Settings.isBranchValid(branch);
@@ -89,6 +89,7 @@ export async function register(req, res) {
       mobile: mobile.trim(),
       model: modelName.trim(),
       modelId,
+      salesConsultant: salesConsultant ? salesConsultant.trim() : null,
       branch: branch.toUpperCase(),
       purpose,
       status: 'WAITING'
@@ -108,6 +109,7 @@ export async function register(req, res) {
         fullName: registration.fullName,
         model: registration.model,
         modelId: registration.modelId,
+        salesConsultant: registration.salesConsultant,
         branch: registration.branch,
         purpose: registration.purpose,
         status: registration.status,
@@ -398,6 +400,7 @@ export async function getPublicRegistrations(req, res) {
           fullName: r.fullName,
           mobile: r.mobile,
           model: r.model,
+          salesConsultant: r.salesConsultant,
           branch: r.branch,
           purpose: r.purpose,
           status: r.status,
@@ -414,6 +417,134 @@ export async function getPublicRegistrations(req, res) {
       success: false,
       error: 'Failed to retrieve registrations',
       message: 'An error occurred while fetching registrations'
+    });
+  }
+}
+
+
+/**
+ * Search registrations by name or queue number
+ * GET /api/registrations/search?query=John&branch=MAIN
+ */
+export async function searchRegistrations(req, res) {
+  try {
+    const { query, branch = 'MAIN' } = req.query;
+
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid query',
+        message: 'Search query must be at least 2 characters'
+      });
+    }
+
+    // Get all registrations for the branch
+    const allRegistrations = await Registration.getQueueByBranch(branch, ['WAITING', 'SERVING', 'DONE']);
+
+    // Filter by name or queue number
+    const searchTerm = query.trim().toLowerCase();
+    const results = allRegistrations.filter(r => 
+      r.fullName.toLowerCase().includes(searchTerm) ||
+      r.queueNo.toLowerCase().includes(searchTerm) ||
+      (r.mobile && r.mobile.includes(searchTerm))
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: results.map(r => ({
+        id: r.id,
+        queueNo: r.queueNo,
+        fullName: r.fullName,
+        mobile: r.mobile,
+        model: r.model,
+        carId: r.modelId,
+        salesConsultant: r.salesConsultant,
+        branch: r.branch,
+        purpose: r.purpose,
+        status: r.status,
+        createdAt: r.createdAt
+      })),
+      count: results.length
+    });
+
+  } catch (error) {
+    console.error('Search registrations error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Search failed',
+      message: 'An error occurred while searching registrations'
+    });
+  }
+}
+
+/**
+ * Update registration
+ * PATCH /api/registrations/:id
+ */
+export async function updateRegistrationById(req, res) {
+  try {
+    const { id } = req.params;
+    const { fullName, mobile, carId, salesConsultant } = req.body;
+
+    // Find registration
+    const registration = await Registration.findById(id);
+    if (!registration) {
+      return res.status(404).json({
+        success: false,
+        error: 'Registration not found',
+        message: `No registration found with ID: ${id}`
+      });
+    }
+
+    // Prepare update data
+    const updateData = {};
+    if (fullName) updateData.fullName = fullName.trim();
+    if (mobile) updateData.mobile = mobile.trim();
+    if (salesConsultant !== undefined) updateData.salesConsultant = salesConsultant ? salesConsultant.trim() : null;
+
+    // If carId is provided and not empty, validate and get model name
+    if (carId && carId.trim()) {
+      const car = await Car.findById(carId);
+      if (!car) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid car',
+          message: 'The selected car model does not exist'
+        });
+      }
+      updateData.modelId = car.id;
+      updateData.model = car.model;
+    }
+
+    // Only update if there are changes
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No changes',
+        message: 'No fields to update'
+      });
+    }
+
+    // Update registration
+    const updated = await Registration.update(id, updateData);
+
+    // Emit socket event for real-time updates
+    if (req.io) {
+      req.io.emit('queue:updated', { branch: registration.branch });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: updated,
+      message: 'Registration updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Update registration error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Update failed',
+      message: 'An error occurred while updating registration'
     });
   }
 }

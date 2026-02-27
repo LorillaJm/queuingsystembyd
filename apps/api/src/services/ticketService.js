@@ -75,6 +75,10 @@ async function callNextForModel(branch, model) {
   // Check if there's already someone being served for this model
   const currentlyServing = modelTickets.find(t => t.status === 'SERVING');
   
+  if (currentlyServing) {
+    throw new Error('ALREADY_SERVING');
+  }
+  
   // Get waiting tickets for this model
   const waitingTickets = modelTickets.filter(t => t.status === 'WAITING');
   
@@ -166,12 +170,23 @@ export async function markTicketDone(branch, queueNo) {
     completedAt: Date.now()
   });
 
-  // Auto-call next customer for this model
+  // Auto-call next customer for this model (without checking if already serving)
   try {
-    await callNextForModel(branchUpper, model);
+    // Get waiting tickets for this model
+    const allTickets = await Registration.getQueueByBranch(branchUpper, ['WAITING']);
+    const waitingTickets = allTickets.filter(t => t.model === model);
+    
+    if (waitingTickets.length > 0) {
+      const nextTicket = waitingTickets[0];
+      await Registration.update(nextTicket.id, {
+        status: 'SERVING',
+        calledAt: Date.now()
+      });
+      console.log(`Auto-called next customer ${nextTicket.queueNo} for ${model}`);
+    }
   } catch (err) {
     // No more customers waiting for this model, that's okay
-    console.log(`No more customers waiting for ${model}`);
+    console.log(`No more customers waiting for ${model}:`, err.message);
   }
 
   return updatedTicket;

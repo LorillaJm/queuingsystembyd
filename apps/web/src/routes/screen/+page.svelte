@@ -2,206 +2,124 @@
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { getSocket } from '$lib/socket';
-  import { fade, fly } from 'svelte/transition';
-  import { quintOut } from 'svelte/easing';
+  import { getCars } from '$lib/api';
+  import { fade, scale } from 'svelte/transition';
 
-  let socket;
-  let nowServing = null;
-  let nextUp = [];
-  let branch = 'MAIN';
-  let isConnected = false;
-  let previousServing = null;
-  let audioElement;
+  let socket, branch = 'MAIN', isConnected = false, cars = [], tickets = [], audioElement;
+  $: branchParam = $page.url.searchParams.get('branch');
+  $: if (branchParam) branch = branchParam.toUpperCase();
+  $: ticketsByModel = groupTicketsByModel(tickets, cars);
 
-  // Get branch from query param
-  $: {
-    const branchParam = $page.url.searchParams.get('branch');
-    if (branchParam) {
-      branch = branchParam.toUpperCase();
-    }
+  function groupTicketsByModel(tickets, cars) {
+    const grouped = {};
+    cars.forEach(car => { grouped[car.model] = { model: car.model, serving: null }; });
+    
+    tickets.forEach(ticket => {
+      if (grouped[ticket.model] && ticket.status === 'SERVING') {
+        grouped[ticket.model].serving = ticket;
+      }
+    });
+    
+    return Object.values(grouped);
   }
 
-  async function fetchQueue() {
+  async function fetchCars() {
+    try {
+      const response = await getCars(branch);
+      if (response.success) cars = response.data.cars || [];
+    } catch (err) { console.error('Failed to fetch cars:', err); }
+  }
+
+  async function fetchTickets() {
     try {
       const response = await fetch(`http://localhost:3001/api/registrations?branch=${branch}`);
       const data = await response.json();
-      
-      if (data.success) {
-        const tickets = data.data.registrations || [];
-        
-        // Find currently serving (first SERVING ticket)
-        const serving = tickets.find(t => t.status === 'SERVING');
-        
-        // Check if serving number changed
-        const servingChanged = nowServing?.queueNo !== serving?.queueNo;
-        
-        // Update previous before changing current
-        if (servingChanged && serving) {
-          previousServing = nowServing;
-          playNotificationSound();
-        }
-        
-        nowServing = serving || null;
-        
-        // Get next 3 waiting tickets
-        const waiting = tickets
-          .filter(t => t.status === 'WAITING')
-          .sort((a, b) => {
-            const numA = parseInt(a.queueNo.replace(/\D/g, ''));
-            const numB = parseInt(b.queueNo.replace(/\D/g, ''));
-            return numA - numB;
-          })
-          .slice(0, 3);
-        
-        nextUp = waiting;
+      if (data.success) { 
+        tickets = data.data.registrations || [];
       }
-    } catch (err) {
-      console.error('Failed to fetch queue:', err);
-    }
+    } catch (err) { console.error('Failed to fetch tickets:', err); }
   }
 
   function playNotificationSound() {
     if (audioElement) {
       audioElement.currentTime = 0;
-      audioElement.play().catch(err => {
-        console.log('Audio play failed:', err);
-      });
+      audioElement.play().catch(err => console.log('Audio play failed:', err));
     }
   }
 
-  function handleQueueUpdate(data) {
-    // Only update if it's for our branch
+  function handleQueueUpdate(data) { 
     if (!data.branch || data.branch === branch) {
-      fetchQueue();
-    }
-  }
-
-  function handleTicketCalled(data) {
-    // Only update if it's for our branch
-    if (!data.branch || data.branch === branch) {
-      fetchQueue();
+      fetchTickets();
+      playNotificationSound();
     }
   }
 
   onMount(() => {
-    // Initial fetch
-    fetchQueue();
-    
-    // Setup Socket.io
-    socket = getSocket();
-    
-    socket.on('connect', () => {
-      console.log('Connected to server');
-      isConnected = true;
-      // Join branch-specific room if needed
-      socket.emit('join-branch', branch);
-    });
-    
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      isConnected = false;
-    });
-    
+    fetchCars(); fetchTickets(); socket = getSocket();
+    socket.on('connect', () => { isConnected = true; socket.emit('join-branch', branch); });
+    socket.on('disconnect', () => { isConnected = false; });
     socket.on('queue:updated', handleQueueUpdate);
-    socket.on('ticket:called', handleTicketCalled);
-    
-    // Refresh every 10 seconds as backup
-    const interval = setInterval(fetchQueue, 10000);
-    
-    return () => {
-      clearInterval(interval);
-    };
+    socket.on('ticket:called', handleQueueUpdate);
+    const interval = setInterval(fetchTickets, 10000);
+    return () => clearInterval(interval);
   });
 
   onDestroy(() => {
     if (socket) {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('queue:updated', handleQueueUpdate);
-      socket.off('ticket:called', handleTicketCalled);
+      socket.off('connect'); socket.off('disconnect');
+      socket.off('queue:updated', handleQueueUpdate); socket.off('ticket:called', handleQueueUpdate);
       socket.emit('leave-branch', branch);
     }
   });
 </script>
 
 <svelte:head>
-  <title>Queue Display - {branch}</title>
+  <title>Now Serving - {branch}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 </svelte:head>
 
-<!-- Hidden audio element for notification sound -->
 <audio bind:this={audioElement} preload="auto">
   <source src="/notification.mp3" type="audio/mpeg">
   <source src="/notification.ogg" type="audio/ogg">
 </audio>
 
 <div class="screen-container">
-  <!-- Connection indicator -->
-  <div class="connection-indicator" class:connected={isConnected}>
-    <div class="indicator-dot"></div>
-  </div>
-
-  <!-- Branch indicator -->
-  <div class="branch-badge">
-    {branch}
-  </div>
-
-  <!-- Main content -->
-  <div class="content">
-    <!-- Now Serving Section -->
-    <div class="now-serving-section">
-      <div class="label">NOW SERVING</div>
-      
-      <div class="serving-number">
-        {#if nowServing}
-          {#key nowServing.queueNo}
-            <div 
-              class="number"
-              in:fly="{{ y: -100, duration: 800, easing: quintOut }}"
-              out:fade="{{ duration: 400 }}"
-            >
-              {nowServing.queueNo}
-            </div>
-          {/key}
-        {:else}
-          <div class="number empty">—</div>
-        {/if}
-      </div>
+  <!-- Header -->
+  <div class="header">
+    <div class="branch-badge">{branch}</div>
+    <div class="title">Now Serving</div>
+    <div class="connection-indicator" class:connected={isConnected}>
+      <div class="indicator-dot"></div>
     </div>
+  </div>
 
-    <!-- Next Up Section -->
-    <div class="next-section">
-      <div class="label">NEXT</div>
-      
-      <div class="next-numbers">
-        {#each Array(3) as _, i}
-          <div class="next-item">
-            {#if nextUp[i]}
-              {#key nextUp[i].queueNo}
-                <div 
-                  class="next-number"
-                  in:fly="{{ x: -50, duration: 600, delay: i * 100, easing: quintOut }}"
-                  out:fade="{{ duration: 300 }}"
-                >
-                  {nextUp[i].queueNo}
-                </div>
-              {/key}
-            {:else}
-              <div class="next-number empty">—</div>
+  <!-- Grid Layout -->
+  <div class="grid-container">
+    {#each ticketsByModel as modelGroup (modelGroup.model)}
+      <div class="model-card">
+        <div class="model-name">{modelGroup.model}</div>
+        
+        {#if modelGroup.serving}
+          <div class="serving-info" in:scale={{ duration: 400 }}>
+            <div class="queue-number">{modelGroup.serving.queueNo}</div>
+            <div class="customer-name-large">{modelGroup.serving.fullName}</div>
+            {#if modelGroup.serving.salesConsultant}
+              <div class="sc-name">SC: {modelGroup.serving.salesConsultant}</div>
             {/if}
           </div>
-        {/each}
+        {:else}
+          <div class="empty-state">—</div>
+        {/if}
       </div>
-    </div>
+    {/each}
   </div>
 
-  <!-- Footer with timestamp -->
+  <!-- Footer -->
   <div class="footer">
     <div class="timestamp">
-      {new Date().toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      })}
+      {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
     </div>
   </div>
 </div>
@@ -211,41 +129,62 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #0a0a0a;
+    background: #ffffff;
   }
 
   .screen-container {
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
-    color: #ffffff;
+    background: #ffffff;
+    color: #111111;
     display: flex;
     flex-direction: column;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    position: relative;
-    overflow: hidden;
+    font-family: 'Source Sans Pro', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  /* Connection indicator */
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #E5E7EB;
+    background: #ffffff;
+  }
+
+  .branch-badge {
+    padding: 0.375rem 0.875rem;
+    background: #F3F4F6;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #6B7280;
+  }
+
+  .title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #111111;
+  }
+
   .connection-indicator {
-    position: absolute;
-    top: 2rem;
-    right: 2rem;
-    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .indicator-dot {
-    width: 1rem;
-    height: 1rem;
+    width: 0.5rem;
+    height: 0.5rem;
     border-radius: 50%;
-    background: #ef4444;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    background: #EF4444;
     animation: pulse-red 2s infinite;
   }
 
   .connection-indicator.connected .indicator-dot {
-    background: #10b981;
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+    background: #10B981;
     animation: pulse-green 2s infinite;
   }
 
@@ -259,205 +198,153 @@
     50% { opacity: 0.7; }
   }
 
-  /* Branch badge */
-  .branch-badge {
-    position: absolute;
-    top: 2rem;
-    left: 2rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 1rem;
-    font-size: 1.5rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Grid Container */
+  .grid-container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1.25rem;
+    padding: 1.5rem 2rem;
+    overflow: hidden;
+    background: #F9FAFB;
   }
 
-  /* Main content */
-  .content {
-    flex: 1;
+  /* Model Card */
+  .model-card {
+    background: #ffffff;
+    border: 1px solid #E5E7EB;
+    border-radius: 1.25rem;
+    padding: 1.75rem 1.25rem;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    padding: 4rem;
-    gap: 4rem;
-  }
-
-  /* Now Serving Section */
-  .now-serving-section {
+    justify-content: center;
     text-align: center;
-    width: 100%;
+    transition: all 0.2s ease-out;
+    min-height: 0;
   }
 
-  .now-serving-section .label {
-    font-size: 3rem;
-    font-weight: 300;
-    letter-spacing: 0.2em;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 2rem;
-    text-transform: uppercase;
+  .model-card:hover {
+    border-color: #D1D5DB;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 
-  .serving-number {
-    position: relative;
-    min-height: 20rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .serving-number .number {
-    font-size: 16rem;
+  .model-name {
+    font-size: 1.375rem;
     font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    position: absolute;
+    color: #111111;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
   }
 
-  .serving-number .number.empty {
-    color: rgba(255, 255, 255, 0.2);
-    -webkit-text-fill-color: rgba(255, 255, 255, 0.2);
-  }
-
-  /* Next Section */
-  .next-section {
+  .serving-info {
     width: 100%;
-    text-align: center;
   }
 
-  .next-section .label {
-    font-size: 2.5rem;
+  .queue-number {
+    font-size: 4rem;
+    font-weight: 900;
+    line-height: 1;
+    color: #111111;
+    margin-bottom: 0.875rem;
+    letter-spacing: -0.03em;
+  }
+
+  .customer-name-large {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #111111;
+    margin-bottom: 0.625rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  .sc-name {
+    font-size: 0.8rem;
+    color: #6B7280;
+    font-weight: 400;
+  }
+
+  .empty-state {
+    font-size: 4.5rem;
+    color: #E5E7EB;
     font-weight: 300;
-    letter-spacing: 0.2em;
-    color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 2rem;
-    text-transform: uppercase;
-  }
-
-  .next-numbers {
-    display: flex;
-    justify-content: center;
-    gap: 3rem;
-  }
-
-  .next-item {
-    position: relative;
-    min-width: 12rem;
-    min-height: 10rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border-radius: 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  }
-
-  .next-number {
-    font-size: 5rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: #ffffff;
-    position: absolute;
-  }
-
-  .next-number.empty {
-    color: rgba(255, 255, 255, 0.2);
   }
 
   /* Footer */
   .footer {
-    padding: 2rem;
+    padding: 0.75rem;
     text-align: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #E5E7EB;
+    background: #ffffff;
   }
 
   .timestamp {
-    font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.4);
-    font-weight: 300;
+    font-size: 0.8rem;
+    color: #9CA3AF;
+    font-weight: 400;
   }
 
-  /* Responsive adjustments for different screen sizes */
+  /* Responsive adjustments */
   @media (max-width: 1920px) {
-    .serving-number .number {
-      font-size: 14rem;
-    }
-    
-    .next-number {
-      font-size: 4.5rem;
+    .grid-container {
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
     }
   }
 
   @media (max-width: 1366px) {
-    .serving-number .number {
-      font-size: 12rem;
-    }
-    
-    .next-section .label {
+    .title {
       font-size: 2rem;
     }
     
-    .next-number {
+    .model-name {
+      font-size: 1.25rem;
+    }
+    
+    .queue-number {
       font-size: 4rem;
     }
     
-    .next-item {
-      min-width: 10rem;
-      min-height: 8rem;
+    .customer-name-large {
+      font-size: 1.25rem;
     }
   }
 
   @media (max-width: 1024px) {
-    .serving-number .number {
-      font-size: 10rem;
-    }
-    
-    .now-serving-section .label {
-      font-size: 2.5rem;
-    }
-    
-    .next-number {
-      font-size: 3.5rem;
-    }
-    
-    .next-item {
-      min-width: 8rem;
-      min-height: 7rem;
-    }
-  }
-
-  /* Landscape orientation optimization */
-  @media (orientation: landscape) and (max-height: 800px) {
-    .content {
-      gap: 2rem;
+    .grid-container {
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto;
+      gap: 1.5rem;
       padding: 2rem;
     }
     
-    .serving-number {
-      min-height: 15rem;
+    .title {
+      font-size: 1.75rem;
     }
     
-    .serving-number .number {
-      font-size: 10rem;
+    .model-name {
+      font-size: 1.125rem;
     }
     
-    .now-serving-section .label {
-      font-size: 2rem;
-      margin-bottom: 1rem;
+    .queue-number {
+      font-size: 3.5rem;
+    }
+  }
+
+  /* For 8 models, use 2 rows of 4 */
+  @media (min-width: 1920px) {
+    .grid-container {
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
     }
     
-    .next-section .label {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
+    .model-name {
+      font-size: 1.75rem;
     }
   }
 </style>

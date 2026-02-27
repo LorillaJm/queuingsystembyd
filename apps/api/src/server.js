@@ -9,6 +9,8 @@ import dotenv from 'dotenv';
 import { initializeFirebase } from './config/firebase.js';
 import publicRoutes from './routes/public.js';
 import staffRoutes from './routes/staff.js';
+import testDriveRoutes from './routes/testdrive.js';
+import reservationRoutes from './routes/reservation.js';
 
 dotenv.config();
 
@@ -52,8 +54,8 @@ app.use(cors({
 app.use(compression());
 
 // Body parsing with size limits
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Logging
 if (NODE_ENV === 'production') {
@@ -77,6 +79,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api', publicRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/testdrive', testDriveRoutes);
+app.use('/api/reservation', reservationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

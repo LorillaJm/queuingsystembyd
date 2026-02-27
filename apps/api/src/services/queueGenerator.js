@@ -6,17 +6,17 @@ import Settings from '../models/firebase/Settings.js';
  * 
  * Generates unique queue numbers per branch per day with concurrency safety.
  * 
- * Format: {BRANCH_PREFIX}-{NNN}
- * Example: A-001, A-002, B-001, etc.
+ * Format: {NNN}
+ * Example: 001, 002, 003, etc.
  * 
  * CONCURRENCY SAFETY:
- * Uses MongoDB's atomic findOneAndUpdate with $inc operator.
+ * Uses Firebase's atomic transaction operations.
  * This ensures that even with multiple simultaneous requests,
  * each request gets a unique sequential number without duplicates.
  * 
  * How it works:
- * 1. MongoDB locks the document during the update operation
- * 2. $inc atomically increments the lastNumber field
+ * 1. Firebase locks the document during the update operation
+ * 2. Atomically increments the lastNumber field
  * 3. Each concurrent request waits its turn and gets the next number
  * 4. The operation is atomic at the database level, preventing race conditions
  * 
@@ -31,7 +31,7 @@ import Settings from '../models/firebase/Settings.js';
 /**
  * Generate next queue number for a branch
  * @param {string} branchCode - Branch code (e.g., 'MAIN', 'NORTH')
- * @returns {Promise<string>} Queue number (e.g., 'A-001')
+ * @returns {Promise<string>} Queue number (e.g., '001')
  * @throws {Error} If branch is invalid or max queue reached
  */
 export async function generateQueueNumber(branchCode) {
@@ -59,30 +59,30 @@ export async function generateQueueNumber(branchCode) {
 }
 
 /**
- * Format queue number with branch prefix and padded number
- * @param {string} prefix - Branch prefix (e.g., 'A', 'B')
+ * Format queue number with padded number only (no prefix)
+ * @param {string} prefix - Branch prefix (not used, kept for compatibility)
  * @param {number} number - Sequential number
- * @returns {string} Formatted queue number (e.g., 'A-001')
+ * @returns {string} Formatted queue number (e.g., '001')
  */
 export function formatQueueNumber(prefix, number) {
   // Pad number to 3 digits (001, 002, ..., 999)
   const paddedNumber = String(number).padStart(3, '0');
-  return `${prefix}-${paddedNumber}`;
+  return paddedNumber;
 }
 
 /**
- * Parse queue number to extract prefix and number
- * @param {string} queueNo - Queue number (e.g., 'A-001')
- * @returns {Object} { prefix: 'A', number: 1 }
+ * Parse queue number to extract number
+ * @param {string} queueNo - Queue number (e.g., '001')
+ * @returns {Object} { prefix: '', number: 1 }
  */
 export function parseQueueNumber(queueNo) {
-  const match = queueNo.match(/^([A-Z]+)-(\d{3})$/);
-  if (!match) {
+  const number = parseInt(queueNo, 10);
+  if (isNaN(number)) {
     throw new Error(`Invalid queue number format: ${queueNo}`);
   }
   return {
-    prefix: match[1],
-    number: parseInt(match[2], 10)
+    prefix: '',
+    number: number
   };
 }
 

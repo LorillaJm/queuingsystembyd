@@ -7,6 +7,7 @@ class Registration {
     this.mobile = data.mobile;
     this.model = data.model;
     this.modelId = data.modelId || null;
+    this.salesConsultant = data.salesConsultant || null;
     this.branch = data.branch.toUpperCase();
     this.purpose = data.purpose || 'TEST_DRIVE';
     this.status = data.status || 'WAITING';

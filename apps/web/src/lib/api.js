@@ -10,12 +10,19 @@ export async function register(data) {
     body: JSON.stringify(data)
   });
 
+  const result = await response.json();
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Registration failed');
+    // Return the full error response instead of throwing
+    return {
+      success: false,
+      error: result.error || 'Registration failed',
+      message: result.message,
+      details: result.details
+    };
   }
 
-  return response.json();
+  return result;
 }
 
 export async function getQueue(branch = 'MAIN') {
@@ -221,4 +228,36 @@ export async function deleteCar(pin, carId) {
   }
 
   return response.json();
+}
+
+// Search registrations by name or queue number
+export async function searchRegistrations(query, branch = 'MAIN') {
+  const response = await fetch(`${API_URL}/api/registrations/search?query=${encodeURIComponent(query)}&branch=${branch}`);
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to search registrations');
+  }
+
+  return response.json();
+}
+
+// Update registration
+export async function updateRegistration(registrationId, data) {
+  console.log('API: Updating registration', registrationId, data);
+  
+  const response = await fetch(`${API_URL}/api/registrations/${registrationId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+
+  const result = await response.json();
+  console.log('API: Update response', result);
+
+  if (!response.ok) {
+    throw new Error(result.message || result.error || 'Failed to update registration');
+  }
+
+  return result;
 }

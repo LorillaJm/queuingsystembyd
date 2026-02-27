@@ -14,7 +14,6 @@
     const grouped = {};
     cars.forEach(car => { grouped[car.model] = { model: car.model, serving: null, nextWaiting: null, waitingList: [] }; });
     
-    // Sort tickets by queue number to ensure proper order
     const sortedTickets = [...tickets].sort((a, b) => {
       const numA = parseInt(a.queueNo.replace(/\D/g, ''));
       const numB = parseInt(b.queueNo.replace(/\D/g, ''));
@@ -26,11 +25,9 @@
         if (ticket.status === 'SERVING') {
           grouped[ticket.model].serving = ticket;
         } else if (ticket.status === 'WAITING') {
-          // First waiting customer becomes "next"
           if (!grouped[ticket.model].nextWaiting) {
             grouped[ticket.model].nextWaiting = ticket;
           } else {
-            // All other waiting customers go to the waiting list
             grouped[ticket.model].waitingList.push(ticket);
           }
         }
@@ -81,23 +78,23 @@
 
 <svelte:head><title>MC Announcer - {branch}</title></svelte:head>
 
-<div class="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
-  <!-- Compact Header -->
-  <header class="bg-white/80 backdrop-blur-xl border-b border-slate-200 flex-shrink-0">
-    <div class="max-w-full mx-auto px-4 py-2">
+<div class="min-h-screen bg-white">
+  <!-- Header -->
+  <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
+    <div class="max-w-full mx-auto px-6 py-4">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="bg-gradient-to-r from-red-600 to-rose-600 text-white px-3 py-1 rounded-lg font-semibold text-xs tracking-wide">
+        <div class="flex items-center gap-4">
+          <div class="bg-gray-100 text-gray-900 px-4 py-2 rounded-full font-semibold text-sm">
             {branch}
           </div>
-          <h1 class="text-lg font-bold text-slate-900">MC Announcer</h1>
+          <h1 class="text-2xl font-bold text-gray-900">MC Announcer</h1>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2 px-2 py-1 bg-slate-100 rounded-lg">
-            <div class="w-1.5 h-1.5 rounded-full {isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}"></div>
-            <span class="text-xs text-slate-600">{isConnected ? 'Live' : 'Offline'}</span>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full">
+            <div class="w-2 h-2 rounded-full {isConnected ? 'bg-green-500' : 'bg-red-500'}"></div>
+            <span class="text-sm text-gray-600">{isConnected ? 'Live' : 'Offline'}</span>
           </div>
-          <div class="text-xs text-slate-500">
+          <div class="text-sm text-gray-500">
             {lastUpdate.toLocaleTimeString()}
           </div>
         </div>
@@ -105,49 +102,15 @@
     </div>
   </header>
 
-  <!-- Event Banner -->
-  <div class="flex-shrink-0 bg-gradient-to-r from-red-700 via-red-600 to-red-700 border-y-4 border-yellow-400 relative overflow-hidden">
-    <!-- Decorative pattern overlay -->
-    <div class="absolute inset-0 opacity-10" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.1) 10px, rgba(255,255,255,.1) 20px);"></div>
-    
-    <div class="relative px-6 py-3 flex items-center justify-between">
-      <!-- Left decoration -->
-      <div class="flex items-center gap-2">
-        <div class="text-yellow-300 text-2xl">🏮</div>
-        <div class="hidden sm:block text-yellow-300 text-xl">🎊</div>
-      </div>
-      
-      <!-- Center content -->
-      <div class="text-center flex-1">
-        <div class="text-yellow-300 text-xs font-bold tracking-widest mb-0.5">BYD ILOILO PRESENTS</div>
-        <div class="text-white font-bold text-lg sm:text-xl tracking-wide drop-shadow-lg">
-          PROSPERITY IN MOTION
-        </div>
-        <div class="text-yellow-200 text-xs mt-0.5 font-medium">
-          Fuel Your Fortune • February 28, 2026
-        </div>
-      </div>
-      
-      <!-- Right decoration -->
-      <div class="flex items-center gap-2">
-        <div class="hidden sm:block text-yellow-300 text-xl">🎊</div>
-        <div class="text-yellow-300 text-2xl">🏮</div>
-      </div>
-    </div>
-    
-    <!-- Bottom decorative border -->
-    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400"></div>
-  </div>
-
-  <!-- Main Content - Fills remaining space -->
-  <main class="flex-1 overflow-auto px-4 py-3">
-    <div class="bg-white rounded-xl shadow-lg h-full overflow-auto">
-      <table class="w-full border-collapse table-fixed">
+  <!-- Main Content -->
+  <main class="max-w-full mx-auto px-4 py-4">
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <table class="w-full table-fixed">
         <!-- Model Names Header -->
-        <thead class="sticky top-0 z-10">
-          <tr class="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-300">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
             {#each ticketsByModel as modelGroup (modelGroup.model)}
-              <th class="px-2 py-2 text-center text-xs font-bold text-slate-900 leading-tight" style="width: {100 / ticketsByModel.length}%">
+              <th class="px-2 py-2 text-center text-xs font-semibold text-gray-900">
                 <div class="truncate" title={modelGroup.model}>
                   {modelGroup.model}
                 </div>
@@ -158,26 +121,27 @@
 
         <tbody>
           <!-- Now Serving Row -->
-          <tr class="border-b border-slate-200 bg-red-50/30">
+          <tr class="border-b border-gray-200 bg-blue-50">
             {#each ticketsByModel as modelGroup (modelGroup.model)}
               <td class="px-2 py-3 align-top">
-                <div class="mb-1 text-center">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-gradient-to-r from-red-600 to-rose-600 text-white text-[10px] font-bold uppercase tracking-wide">
+                <div class="mb-1.5 text-center">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-semibold uppercase">
                     Serving
                   </span>
                 </div>
                 {#if modelGroup.serving}
                   <div in:scale={{ duration: 300 }}>
-                    <div class="bg-gradient-to-br from-red-500 to-rose-600 rounded-lg p-2 text-white shadow-md hover:shadow-lg transition-all duration-300">
-                      <div class="text-lg font-bold tracking-tight">{modelGroup.serving.queueNo}</div>
-                      <div class="text-[10px] font-medium opacity-90 truncate" title={modelGroup.serving.fullName}>
+                    <div class="bg-white rounded-lg p-2.5 border border-blue-200 hover:border-blue-300 transition-all text-center">
+                      <div class="text-2xl font-bold text-gray-900 mb-1">{modelGroup.serving.queueNo}</div>
+                      <div class="text-xs font-semibold text-gray-900 leading-tight mb-1" title="{modelGroup.serving.fullName}">
                         {modelGroup.serving.fullName}
                       </div>
+                      <div class="text-[10px] text-gray-500 leading-tight">SC: {modelGroup.serving.salesConsultant || 'N/A'}</div>
                     </div>
                   </div>
                 {:else}
-                  <div class="flex items-center justify-center h-16 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                    <span class="text-slate-400 text-lg">—</span>
+                  <div class="flex items-center justify-center h-24 bg-gray-50 rounded-lg border border-gray-200">
+                    <span class="text-gray-300 text-2xl">—</span>
                   </div>
                 {/if}
               </td>
@@ -185,26 +149,27 @@
           </tr>
 
           <!-- Next Up Row -->
-          <tr class="bg-slate-50/50 border-b border-slate-200">
+          <tr class="bg-gray-50 border-b border-gray-200">
             {#each ticketsByModel as modelGroup (modelGroup.model)}
               <td class="px-2 py-3 align-top">
-                <div class="mb-1 text-center">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wide">
+                <div class="mb-1.5 text-center">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-[10px] font-semibold uppercase">
                     Next
                   </span>
                 </div>
                 {#if modelGroup.nextWaiting}
                   <div in:scale={{ duration: 300, delay: 100 }}>
-                    <div class="bg-white rounded-lg p-2 border border-red-200 hover:border-red-300 hover:shadow-sm transition-all duration-300">
-                      <div class="text-base font-bold text-red-600">{modelGroup.nextWaiting.queueNo}</div>
-                      <div class="text-[10px] text-slate-600 truncate" title={modelGroup.nextWaiting.fullName}>
+                    <div class="bg-white rounded-lg p-2.5 border border-gray-200 hover:border-gray-300 transition-all text-center">
+                      <div class="text-xl font-bold text-gray-900 mb-1">{modelGroup.nextWaiting.queueNo}</div>
+                      <div class="text-xs font-semibold text-gray-700 leading-tight mb-1" title="{modelGroup.nextWaiting.fullName}">
                         {modelGroup.nextWaiting.fullName}
                       </div>
+                      <div class="text-[10px] text-gray-500 leading-tight">SC: {modelGroup.nextWaiting.salesConsultant || 'N/A'}</div>
                     </div>
                   </div>
                 {:else}
-                  <div class="flex items-center justify-center h-16 bg-white rounded-lg border border-dashed border-slate-200">
-                    <span class="text-slate-400 text-lg">—</span>
+                  <div class="flex items-center justify-center h-24 bg-white rounded-lg border border-gray-200">
+                    <span class="text-gray-300 text-2xl">—</span>
                   </div>
                 {/if}
               </td>
@@ -215,29 +180,37 @@
           <tr class="bg-white">
             {#each ticketsByModel as modelGroup (modelGroup.model)}
               <td class="px-2 py-3 align-top">
-                <div class="mb-1 text-center">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wide">
+                <div class="mb-1.5 text-center">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[10px] font-semibold uppercase">
                     Waiting ({modelGroup.waitingList?.length || 0})
                   </span>
                 </div>
                 {#if modelGroup.waitingList && modelGroup.waitingList.length > 0}
                   <div class="space-y-1">
-                    {#each modelGroup.waitingList as ticket (ticket.id || ticket.queueNo)}
+                    {#each modelGroup.waitingList.slice(0, 10) as ticket, index (ticket.id || ticket.queueNo)}
                       <div in:fade={{ duration: 200 }}>
-                        <div class="bg-amber-50 rounded p-1.5 border border-amber-200 hover:bg-amber-100 transition-colors">
-                          <div class="flex items-center justify-between gap-1">
-                            <span class="text-xs font-bold text-amber-700">{ticket.queueNo}</span>
-                            <span class="text-[9px] text-amber-600 truncate flex-1 text-right" title={ticket.fullName}>
-                              {ticket.fullName}
-                            </span>
+                        <div class="bg-gray-50 rounded p-2 border border-gray-200 hover:bg-gray-100 transition-colors">
+                          <div class="flex items-start gap-2">
+                            <span class="text-[10px] text-gray-500 font-medium flex-shrink-0 mt-0.5">{index + 1}.</span>
+                            <div class="flex-1 min-w-0">
+                              <div class="text-xs font-bold text-gray-900 mb-0.5">{ticket.queueNo}</div>
+                              <div class="text-[10px] font-semibold text-gray-700 leading-tight break-words" title="{ticket.fullName}">
+                                {ticket.fullName}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     {/each}
+                    {#if modelGroup.waitingList.length > 10}
+                      <div class="text-center text-[10px] text-gray-400 py-1">
+                        +{modelGroup.waitingList.length - 10} more
+                      </div>
+                    {/if}
                   </div>
                 {:else}
-                  <div class="flex items-center justify-center h-12 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                    <span class="text-slate-400 text-xs">No waiting</span>
+                  <div class="flex items-center justify-center h-12 bg-gray-50 rounded-lg border border-gray-200">
+                    <span class="text-gray-400 text-xs">No waiting</span>
                   </div>
                 {/if}
               </td>

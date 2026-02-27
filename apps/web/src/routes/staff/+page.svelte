@@ -7,6 +7,7 @@
 
   let socket, authenticated = false, pin = '', error = '', loading = false;
   let branch = 'MAIN', cars = [], tickets = [], lastUpdate = new Date();
+  let successMessage = '';
 
   $: ticketsByModel = groupTicketsByModel(tickets, cars);
 
@@ -90,6 +91,7 @@
       });
       const data = await response.json();
       if (data.success) {
+        showSuccess(`Called ${data.data.queueNo} - ${data.data.fullName}`);
         fetchTickets();
       } else {
         alert(data.message || 'Failed to call next customer');
@@ -100,7 +102,7 @@
   }
 
   async function markAsDone(queueNo) {
-    if (!confirm('Mark this customer as done?')) return;
+    if (!confirm('Mark this customer as done and call next?')) return;
     try {
       const storedPin = localStorage.getItem('staffPin');
       const response = await fetch('http://localhost:3001/api/staff/mark-done', {
@@ -113,13 +115,23 @@
       });
       const data = await response.json();
       if (data.success) {
+        showSuccess(`${queueNo} marked as done!`);
         fetchTickets();
       } else {
-        alert(data.message || 'Failed to mark as done');
+        console.error('Mark done error:', data);
+        alert(data.message || data.error || 'Failed to mark as done');
       }
     } catch (err) {
+      console.error('Mark done exception:', err);
       alert('Failed to mark as done');
     }
+  }
+
+  function showSuccess(message) {
+    successMessage = message;
+    setTimeout(() => {
+      successMessage = '';
+    }, 3000);
   }
 
   function handleLogout() {
@@ -158,19 +170,18 @@
 
 {#if !authenticated}
   <!-- Login Screen -->
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-600 via-rose-600 to-red-700">
-    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
-      <div class="text-center mb-6">
-        <div class="text-4xl mb-3">🏮</div>
-        <h1 class="text-2xl font-bold text-slate-900">Staff Login</h1>
-        <p class="text-sm text-slate-500 mt-1">Enter your PIN to continue</p>
+  <div class="min-h-screen flex items-center justify-center bg-white">
+    <div class="bg-white rounded-2xl border border-gray-200 p-10 w-full max-w-md mx-4">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-semibold text-gray-900 mb-2">Staff Login</h1>
+        <p class="text-base text-gray-500">Enter your PIN to continue</p>
       </div>
-      <form on:submit={handleLogin} class="space-y-4">
+      <form on:submit={handleLogin} class="space-y-5">
         <input 
           type="password" 
           bind:value={pin} 
           placeholder="Enter PIN" 
-          class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-center text-lg tracking-widest focus:outline-none focus:border-red-500 transition-colors"
+          class="w-full px-4 py-3 border border-gray-300 rounded-xl text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           required 
         />
         {#if error}
@@ -178,7 +189,7 @@
         {/if}
         <button 
           type="submit" 
-          class="w-full py-3 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          class="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
           disabled={loading}
         >
           {loading ? 'Logging in...' : 'Login'}
@@ -188,21 +199,35 @@
   </div>
 {:else}
   <!-- Staff Panel -->
-  <div class="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">
-    <!-- Compact Header -->
-    <header class="bg-white/80 backdrop-blur-xl border-b border-slate-200 flex-shrink-0">
-      <div class="px-4 py-2 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="bg-gradient-to-r from-red-600 to-rose-600 text-white px-3 py-1 rounded-lg font-semibold text-xs">
+  <div class="h-screen flex flex-col bg-white">
+    <!-- Success Toast -->
+    {#if successMessage}
+      <div 
+        class="fixed top-4 right-4 z-50 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3"
+        in:fade={{ duration: 200 }}
+        out:fade={{ duration: 200 }}
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span class="font-semibold">{successMessage}</span>
+      </div>
+    {/if}
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 flex-shrink-0">
+      <div class="px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="bg-gray-100 text-gray-900 px-4 py-2 rounded-full font-semibold text-sm">
             {branch}
           </div>
-          <h1 class="text-lg font-bold text-slate-900">Staff Control</h1>
+          <h1 class="text-2xl font-bold text-gray-900">Staff Control</h1>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="text-xs text-slate-500">{lastUpdate.toLocaleTimeString()}</div>
+        <div class="flex items-center gap-4">
+          <div class="text-sm text-gray-500">{lastUpdate.toLocaleTimeString()}</div>
           <button 
             on:click={handleLogout}
-            class="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors"
+            class="px-4 py-2 bg-gray-100 text-gray-900 rounded-full text-sm font-semibold hover:bg-gray-200 transition-colors"
           >
             Logout
           </button>
@@ -210,80 +235,69 @@
       </div>
     </header>
 
-    <!-- Event Banner -->
-    <div class="flex-shrink-0 bg-gradient-to-r from-red-700 via-red-600 to-red-700 border-b-2 border-yellow-400">
-      <div class="px-4 py-2 flex items-center justify-center gap-2">
-        <span class="text-yellow-300 text-lg">🏮</span>
-        <span class="text-white font-bold text-sm">PROSPERITY IN MOTION</span>
-        <span class="text-yellow-200 text-xs">• Feb 28, 2026</span>
-        <span class="text-yellow-300 text-lg">🏮</span>
-      </div>
-    </div>
-
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto p-4">
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <main class="flex-1 overflow-auto p-6">
+      <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
-            <thead class="bg-gradient-to-r from-slate-50 to-slate-100 sticky top-0">
-              <tr class="border-b-2 border-slate-200">
-                <th class="px-3 py-2 text-left text-xs font-bold text-slate-700 uppercase tracking-wide">Model</th>
-                <th class="px-3 py-2 text-left text-xs font-bold text-slate-700 uppercase tracking-wide">Serving</th>
-                <th class="px-3 py-2 text-center text-xs font-bold text-slate-700 uppercase tracking-wide">Waiting</th>
-                <th class="px-3 py-2 text-center text-xs font-bold text-slate-700 uppercase tracking-wide">Actions</th>
+            <thead class="bg-gray-50 sticky top-0">
+              <tr class="border-b border-gray-200">
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Model</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-900 uppercase tracking-wide">Serving</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-gray-900 uppercase tracking-wide">Waiting</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-gray-900 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody>
               {#each ticketsByModel as modelGroup (modelGroup.model)}
-                <tr in:fade={{ duration: 300 }} class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <tr in:fade={{ duration: 300 }} class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                   <!-- Model -->
-                  <td class="px-3 py-3 align-middle">
-                    <div class="font-semibold text-sm text-slate-900 leading-tight">
+                  <td class="px-6 py-4 align-middle">
+                    <div class="font-semibold text-base text-gray-900 leading-tight">
                       {modelGroup.model}
                     </div>
                   </td>
                   
                   <!-- Currently Serving -->
-                  <td class="px-3 py-3 align-middle">
+                  <td class="px-6 py-4 align-middle">
                     {#if modelGroup.serving}
-                      <div class="flex items-center gap-2">
-                        <div class="bg-gradient-to-br from-red-500 to-rose-600 text-white px-2 py-1 rounded-lg font-bold text-sm min-w-[60px] text-center">
+                      <div class="flex items-center gap-3">
+                        <div class="bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold text-base min-w-[70px] text-center">
                           {modelGroup.serving.queueNo}
                         </div>
                         <div class="flex-1 min-w-0">
-                          <div class="font-semibold text-sm text-slate-900 truncate">{modelGroup.serving.fullName}</div>
-                          <div class="text-xs text-slate-500 truncate">{modelGroup.serving.mobile}</div>
+                          <div class="font-semibold text-base text-gray-900 truncate">{modelGroup.serving.fullName}</div>
+                          <div class="text-sm text-gray-500 truncate">{modelGroup.serving.mobile}</div>
                         </div>
                       </div>
                     {:else}
-                      <span class="text-slate-400 text-sm italic">No customer</span>
+                      <span class="text-gray-400 text-base">No customer</span>
                     {/if}
                   </td>
                   
                   <!-- Waiting Count -->
-                  <td class="px-3 py-3 align-middle text-center">
-                    <span class="inline-flex items-center px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-bold">
+                  <td class="px-6 py-4 align-middle text-center">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full bg-gray-100 text-gray-900 text-sm font-semibold">
                       {modelGroup.waitingCount}
                     </span>
                   </td>
                   
                   <!-- Actions -->
-                  <td class="px-3 py-3 align-middle">
+                  <td class="px-6 py-4 align-middle">
                     <div class="flex items-center justify-center gap-2">
                       {#if modelGroup.serving}
                         <button 
                           on:click={() => markAsDone(modelGroup.serving.queueNo)}
-                          class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors"
+                          class="px-4 py-2 bg-green-600 text-white rounded-full text-sm font-semibold hover:bg-green-700 transition-colors"
                         >
-                          Done
+                          Done & Move Next
                         </button>
-                      {/if}
-                      {#if modelGroup.waitingCount > 0}
+                      {:else if modelGroup.waitingCount > 0}
                         <button 
                           on:click={() => callNextForModel(modelGroup.model)}
-                          class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+                          class="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition-colors"
                         >
-                          Next
+                          Call Next
                         </button>
                       {/if}
                     </div>

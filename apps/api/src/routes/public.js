@@ -7,7 +7,9 @@ import {
   getQueue,
   getBranches,
   getPublicCars,
-  getPublicRegistrations
+  getPublicRegistrations,
+  searchRegistrations,
+  updateRegistrationById
 } from '../controllers/registrationController.js';
 
 const router = express.Router();
@@ -63,5 +65,17 @@ router.get('/registrations',
   branchQueryValidation,
   getPublicRegistrations
 );
+
+/**
+ * GET /api/registrations/search?query=John&branch=MAIN
+ * Search registrations by name or queue number
+ */
+router.get('/registrations/search', searchRegistrations);
+
+/**
+ * PATCH /api/registrations/:id
+ * Update registration by ID
+ */
+router.patch('/registrations/:id', updateRegistrationById);
 
 export default router;

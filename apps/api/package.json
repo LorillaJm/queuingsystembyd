@@ -8,6 +8,7 @@
     "init-db": "node src/scripts/init-database.js",
     "init-firebase": "node src/scripts/init-firebase.js",
     "seed:15": "node src/scripts/seed-15-per-model.js",
+    "update-cars": "node src/scripts/update-final-cars.js",
     "test": "node src/tests/queueGenerator.test.js",
     "test:quick": "node src/tests/quick-test.js",
     "test:concurrency": "node src/tests/concurrency-demo.js",

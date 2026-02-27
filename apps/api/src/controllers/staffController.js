@@ -506,6 +506,14 @@ export async function nextModel(req, res) {
       });
     }
 
+    if (error.message === 'ALREADY_SERVING') {
+      return res.status(400).json({
+        success: false,
+        error: 'Already serving',
+        message: 'Please complete the current customer before calling the next one'
+      });
+    }
+
     return res.status(500).json({
       success: false,
       error: 'Failed to call next ticket',
