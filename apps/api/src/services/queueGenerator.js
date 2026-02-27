@@ -6,8 +6,8 @@ import Settings from '../models/firebase/Settings.js';
  * 
  * Generates unique queue numbers per branch per day with concurrency safety.
  * 
- * Format: {NNN}
- * Example: 001, 002, 003, etc.
+ * Format: {N}
+ * Example: 1, 2, 3, etc.
  * 
  * CONCURRENCY SAFETY:
  * Uses Firebase's atomic transaction operations.
@@ -59,15 +59,14 @@ export async function generateQueueNumber(branchCode) {
 }
 
 /**
- * Format queue number with padded number only (no prefix)
+ * Format queue number with just the number (no padding)
  * @param {string} prefix - Branch prefix (not used, kept for compatibility)
  * @param {number} number - Sequential number
- * @returns {string} Formatted queue number (e.g., '001')
+ * @returns {string} Formatted queue number (e.g., '1', '2', '3')
  */
 export function formatQueueNumber(prefix, number) {
-  // Pad number to 3 digits (001, 002, ..., 999)
-  const paddedNumber = String(number).padStart(3, '0');
-  return paddedNumber;
+  // Return just the number as string (no padding)
+  return String(number);
 }
 
 /**

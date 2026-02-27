@@ -23,7 +23,7 @@ export async function register(req, res) {
       });
     }
 
-    const { fullName, mobile, carId, model, salesConsultant, branch, purpose = 'TEST_DRIVE' } = req.body;
+    const { fullName, mobile, email, idNumber, carId, model, salesConsultant, branch, purpose = 'TEST_DRIVE', paymentMode } = req.body;
 
     // Validate branch exists and is active
     const branchExists = await Settings.isBranchValid(branch);
@@ -87,11 +87,14 @@ export async function register(req, res) {
       queueNo,
       fullName: fullName.trim(),
       mobile: mobile.trim(),
+      email: email && email.trim() ? email.trim() : null,
+      idNumber: idNumber && idNumber.trim() ? idNumber.trim() : null,
       model: modelName.trim(),
       modelId,
       salesConsultant: salesConsultant ? salesConsultant.trim() : null,
       branch: branch.toUpperCase(),
       purpose,
+      paymentMode: paymentMode && paymentMode.trim() ? paymentMode.trim() : null,
       status: 'WAITING'
     });
 
@@ -107,11 +110,14 @@ export async function register(req, res) {
         ticketId: registration.id,
         queueNo: registration.queueNo,
         fullName: registration.fullName,
+        email: registration.email,
+        idNumber: registration.idNumber,
         model: registration.model,
         modelId: registration.modelId,
         salesConsultant: registration.salesConsultant,
         branch: registration.branch,
         purpose: registration.purpose,
+        paymentMode: registration.paymentMode,
         status: registration.status,
         createdAt: registration.createdAt
       },
@@ -367,7 +373,7 @@ export async function getPublicCars(req, res) {
  */
 export async function getPublicRegistrations(req, res) {
   try {
-    const { branch } = req.query;
+    const { branch, includeAll } = req.query;
 
     if (!branch) {
       return res.status(400).json({
@@ -387,8 +393,22 @@ export async function getPublicRegistrations(req, res) {
       });
     }
 
-    // Get all active registrations (WAITING and SERVING)
-    const registrations = await Registration.getQueueByBranch(branch, ['WAITING', 'SERVING']);
+    // Determine which statuses to include
+    let statuses = ['WAITING', 'SERVING'];
+    if (includeAll === 'true') {
+      // For summary page - include all statuses
+      statuses = ['WAITING', 'SERVING', 'DONE', 'NOSHOW'];
+    }
+
+    // Get registrations based on status filter
+    let registrations;
+    if (includeAll === 'true') {
+      // Get today's registrations for summary page
+      registrations = await Registration.getTodayRegistrations(branch);
+    } else {
+      // Get active registrations for display screens
+      registrations = await Registration.getQueueByBranch(branch, statuses);
+    }
 
     return res.status(200).json({
       success: true,
@@ -398,12 +418,16 @@ export async function getPublicRegistrations(req, res) {
           ticketId: r.id,
           queueNo: r.queueNo,
           fullName: r.fullName,
+          email: r.email,
           mobile: r.mobile,
+          idNumber: r.idNumber,
           model: r.model,
           salesConsultant: r.salesConsultant,
           branch: r.branch,
           purpose: r.purpose,
           status: r.status,
+          remarks: r.remarks,
+          paymentMode: r.paymentMode,
           calledAt: r.calledAt,
           createdAt: r.createdAt
         })),
@@ -484,7 +508,7 @@ export async function searchRegistrations(req, res) {
 export async function updateRegistrationById(req, res) {
   try {
     const { id } = req.params;
-    const { fullName, mobile, carId, salesConsultant } = req.body;
+    const { fullName, mobile, email, idNumber, carId, salesConsultant } = req.body;
 
     // Find registration
     const registration = await Registration.findById(id);
@@ -500,6 +524,8 @@ export async function updateRegistrationById(req, res) {
     const updateData = {};
     if (fullName) updateData.fullName = fullName.trim();
     if (mobile) updateData.mobile = mobile.trim();
+    if (email !== undefined) updateData.email = email ? email.trim() : null;
+    if (idNumber !== undefined) updateData.idNumber = idNumber ? idNumber.trim() : null;
     if (salesConsultant !== undefined) updateData.salesConsultant = salesConsultant ? salesConsultant.trim() : null;
 
     // If carId is provided and not empty, validate and get model name

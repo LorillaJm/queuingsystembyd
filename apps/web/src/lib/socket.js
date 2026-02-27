@@ -6,9 +6,9 @@ let socket;
 const getSocketUrl = () => {
   if (typeof window === 'undefined') return 'http://localhost:3001';
   
-  // In production, use the same host as the web app
-  if (window.location.hostname !== 'localhost') {
-    return `${window.location.protocol}//${window.location.hostname}`;
+  // Use environment variable if available
+  if (import.meta.env.PUBLIC_SOCKET_URL) {
+    return import.meta.env.PUBLIC_SOCKET_URL;
   }
   
   // In development, use localhost

@@ -5,6 +5,8 @@
 
   let fullName = '';
   let mobile = '';
+  let email = '';
+  let idNumber = '';
   let carId = '';
   let salesConsultant = '';
   let branch = 'MAIN';
@@ -78,10 +80,32 @@
   let currentCaptureTarget = null; // 'id1-front', 'id1-back', 'id2-front', 'id2-back', 'testdrive-front', 'testdrive-back'
 
   const salesConsultants = [
-    'Reynel Gonzales', 'Ron Santos', 'Mary Joy Reyes', 'April Cruz',
-    'Meryl Garcia', 'Angelie Mendoza', 'Karlyn Torres', 'Neil Flores',
-    'Jeff Rivera', 'Mark Boy Ramos', 'Kristian Castillo'
+    'Rynel', 'Ron', 'Mary Joy', 'Meryln', 'April',
+    'Angelie', 'Neil', 'Jeff', 'Markboy', 'Kristian'
   ];
+
+  // Available car models (currently in stock) - exact matches from TV display
+  const availableModels = [
+    'byd atto 3',
+    'byd dolphin',
+    'byd emax 7',
+    'byd shark 6',
+    'byd seal 5',
+    'byd sealion 5',
+    'byd tang',
+    'byd seagull'
+  ];
+
+  // Helper function to check if a car model is available (exact match only)
+  function isCarAvailable(modelName) {
+    const normalized = modelName.toLowerCase().trim();
+    return availableModels.includes(normalized);
+  }
+
+  // Helper function to format car name with asterisk if available
+  function formatCarName(modelName) {
+    return isCarAvailable(modelName) ? `* ${modelName}` : modelName;
+  }
 
   const purposeOptions = [
     { value: 'CIS', label: 'Customer Information Sheet' },
@@ -120,10 +144,6 @@
       validationErrors.mobile = 'Invalid mobile number format';
     } else if (mobile.replace(/\D/g, '').length < 10) {
       validationErrors.mobile = 'Mobile number must be at least 10 digits';
-    }
-
-    if (!carId) {
-      validationErrors.carId = 'Please select a vehicle model';
     }
 
     if (!salesConsultant) {
@@ -179,6 +199,10 @@
   function proceedToWaiver() {
     if (!idFrontImage || !idBackImage) {
       alert('Please upload both front and back of your ID');
+      return;
+    }
+    if (!idNumber || idNumber.trim() === '') {
+      alert('Please enter your license number');
       return;
     }
     // Pre-fill waiver fields with registration data
@@ -285,6 +309,7 @@
         body: JSON.stringify({
           fullName: fullName.trim(),
           mobile: mobile.trim(),
+          idNumber: idNumber.trim(),
           idFront: idFrontImage,
           idBack: idBackImage,
           signature: signatureData
@@ -463,11 +488,14 @@
       
       const result = await register({ 
         fullName: fullName.trim(), 
-        mobile: mobile.trim(), 
+        mobile: mobile.trim(),
+        email: email ? email.trim() : null,
+        idNumber: idNumber ? idNumber.trim() : null,
         carId,
         salesConsultant,
         branch,
-        purpose: purposes.join(',') // Backend expects 'purpose' field
+        purpose: purposes.join(','), // Backend expects 'purpose' field
+        paymentMode: paymentMode || null
       });
       
       console.log('Registration result:', result);
@@ -486,6 +514,8 @@
         };
         fullName = '';
         mobile = '';
+        email = '';
+        idNumber = '';
         carId = '';
         salesConsultant = '';
         purposes = [];
@@ -619,13 +649,41 @@
 
   // Open edit modal
   async function openEditModal(registration) {
-    editingRegistration = { ...registration };
-    showEditModal = true;
+    console.log('Opening edit modal with:', registration);
     
     // Load cars if not already loaded
     if (cars.length === 0) {
       await loadCars();
     }
+    
+    console.log('Cars loaded:', cars.length);
+    console.log('Sales consultants:', salesConsultants);
+    
+    // Find the carId from the model name if carId is not present
+    let carId = registration.carId || '';
+    if (!carId && registration.model && cars.length > 0) {
+      const matchingCar = cars.find(car => car.model === registration.model);
+      if (matchingCar) {
+        carId = matchingCar.carId;
+        console.log('Matched car:', matchingCar);
+      }
+    }
+    
+    // Handle sales consultant
+    let salesConsultant = registration.salesConsultant || '';
+    if (salesConsultant) {
+      salesConsultant = salesConsultant.trim();
+      console.log('Sales consultant from data:', salesConsultant);
+    }
+    
+    editingRegistration = { 
+      ...registration,
+      carId: carId,
+      salesConsultant: salesConsultant
+    };
+    
+    console.log('Editing registration set to:', editingRegistration);
+    showEditModal = true;
   }
 
   // Close edit modal
@@ -655,6 +713,7 @@
       const updateData = {
         fullName: editingRegistration.fullName.trim(),
         mobile: editingRegistration.mobile.trim(),
+        email: editingRegistration.email?.trim() || '',
         salesConsultant: editingRegistration.salesConsultant || ''
       };
 
@@ -801,10 +860,47 @@
           <div class="mt-4 space-y-2 max-h-64 overflow-y-auto">
             {#each searchResults as result}
               <div class="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center hover:border-blue-600 transition-colors">
-                <div>
+                <div class="flex-1">
                   <p class="font-semibold text-gray-900">{result.fullName}</p>
                   <p class="text-sm text-gray-600">Queue: {result.queueNo || 'N/A'} • Mobile: {result.mobile}</p>
-                  <p class="text-sm text-gray-500">Car: {result.model || 'N/A'} • SC: {result.salesConsultant}</p>
+                  <p class="text-sm text-gray-500">Car: {result.model || 'N/A'} • SC: {result.salesConsultant || 'Not assigned'}</p>
+                  
+                  <!-- Status Indicators -->
+                  <div class="flex gap-2 mt-2">
+                    {#if result.purpose && Array.isArray(result.purpose)}
+                      {#if result.purpose.includes('CIS')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                          ✓ CIS
+                        </span>
+                      {/if}
+                      {#if result.purpose.includes('TEST_DRIVE')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                          ✓ Test Drive
+                        </span>
+                      {/if}
+                      {#if result.purpose.includes('RESERVATION')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-medium">
+                          ✓ Reservation
+                        </span>
+                      {/if}
+                    {:else if typeof result.purpose === 'string'}
+                      {#if result.purpose.includes('CIS')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                          ✓ CIS
+                        </span>
+                      {/if}
+                      {#if result.purpose.includes('TEST_DRIVE')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                          ✓ Test Drive
+                        </span>
+                      {/if}
+                      {#if result.purpose.includes('RESERVATION')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-medium">
+                          ✓ Reservation
+                        </span>
+                      {/if}
+                    {/if}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -868,10 +964,24 @@
           {/if}
         </div>
 
+        <!-- Email (Optional) -->
+        <div class="space-y-2">
+          <label for="email" class="block text-sm font-semibold text-gray-900">
+            Email Address <span class="text-gray-500 font-normal">(Optional)</span>
+          </label>
+          <input
+            id="email"
+            type="email"
+            bind:value={email}
+            class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+            placeholder="your.email@example.com"
+          />
+        </div>
+
         <!-- Vehicle Model -->
         <div class="space-y-2">
           <label for="carId" class="block text-sm font-semibold text-gray-900">
-            Vehicle of Interest
+            Vehicle of Interest <span class="text-gray-500 font-normal">(Optional)</span>
           </label>
           {#if loadingCars}
             <div class="w-full px-4 py-4 rounded-xl bg-gray-50 text-gray-500">
@@ -885,18 +995,13 @@
             <select
               id="carId"
               bind:value={carId}
-              required
               class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all bg-white"
-              class:border-red-500={validationErrors.carId}
             >
-              <option value="">Select a BYD model</option>
+              <option value="">Select a BYD model (optional)</option>
               {#each cars as car}
-                <option value={car.carId}>{car.model}</option>
+                <option value={car.carId}>{formatCarName(car.model)}</option>
               {/each}
             </select>
-          {/if}
-          {#if validationErrors.carId}
-            <p class="text-sm text-red-600">{validationErrors.carId}</p>
           {/if}
         </div>
 
@@ -969,21 +1074,6 @@
           {loading ? 'Processing...' : 'Submit'}
         </button>
       </form>
-
-      <!-- Quick Links -->
-      <div class="mt-12 flex flex-wrap justify-center gap-4 text-sm">
-        <a href="/screen?branch=MAIN" class="text-blue-600 hover:text-blue-700 font-medium">
-          TV Display
-        </a>
-        <span class="text-gray-300">•</span>
-        <a href="/mc?branch=MAIN" class="text-blue-600 hover:text-blue-700 font-medium">
-          MC View
-        </a>
-        <span class="text-gray-300">•</span>
-        <a href="/staff" class="text-blue-600 hover:text-blue-700 font-medium">
-          Staff Panel
-        </a>
-      </div>
     </div>
   {/if}
 </div>
@@ -1082,6 +1172,25 @@
                 {/if}
               </div>
             </div>
+
+            <!-- ID Number Input (shown after both IDs are uploaded) -->
+            {#if idFrontImage && idBackImage}
+              <div class="space-y-3 bg-blue-50 p-6 rounded-xl border-2 border-blue-200">
+                <label for="testdrive-id-number" class="block text-sm font-semibold text-gray-900">
+                  License Number
+                  <span class="text-red-600">*</span>
+                </label>
+                <p class="text-sm text-gray-600 mb-2">Please enter the license number from your ID</p>
+                <input
+                  id="testdrive-id-number"
+                  type="text"
+                  bind:value={idNumber}
+                  required
+                  placeholder="e.g., N01-12-345678"
+                  class="w-full px-4 py-3 text-lg rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                />
+              </div>
+            {/if}
           </div>
 
           <div class="flex gap-4 mt-8">
@@ -1095,7 +1204,7 @@
             <button
               type="button"
               on:click={proceedToWaiver}
-              disabled={!idFrontImage || !idBackImage}
+              disabled={!idFrontImage || !idBackImage || !idNumber || idNumber.trim() === ''}
               class="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next: Waiver
@@ -1511,7 +1620,7 @@
                 >
                   <option value="">Select a BYD model</option>
                   {#each cars as car}
-                    <option value={car.model}>{car.model}</option>
+                    <option value={car.model}>{formatCarName(car.model)}</option>
                   {/each}
                 </select>
               {/if}
@@ -1672,6 +1781,17 @@
             />
           </div>
 
+          <!-- Email -->
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-900">Email Address <span class="text-gray-500 font-normal">(Optional)</span></label>
+            <input
+              type="email"
+              bind:value={editingRegistration.email}
+              class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+              placeholder="your.email@example.com"
+            />
+          </div>
+
           <!-- Vehicle Model -->
           <div class="space-y-2">
             <label class="block text-sm font-semibold text-gray-900">Vehicle of Interest</label>
@@ -1681,7 +1801,7 @@
             >
               <option value="">Select a BYD model</option>
               {#each cars as car}
-                <option value={car.carId}>{car.model}</option>
+                <option value={car.carId}>{formatCarName(car.model)}</option>
               {/each}
             </select>
           </div>
@@ -1693,7 +1813,7 @@
               bind:value={editingRegistration.salesConsultant}
               class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all bg-white"
             >
-              <option value="">Select a sales consultant</option>
+              <option value="" disabled>Select a sales consultant</option>
               {#each salesConsultants as consultant}
                 <option value={consultant}>{consultant}</option>
               {/each}

@@ -10,13 +10,40 @@
   $: if (branchParam) branch = branchParam.toUpperCase();
   $: ticketsByModel = groupTicketsByModel(tickets, cars);
 
+  // Available car models for display (only these 8 base models)
+  const displayModels = [
+    { base: 'atto 3', display: 'BYD Atto 3' },
+    { base: 'dolphin', display: 'BYD Dolphin' },
+    { base: 'emax 7', display: 'BYD eMax 7' },
+    { base: 'shark 6', display: 'BYD Shark 6' },
+    { base: 'seal 5', display: 'BYD Seal 5' },
+    { base: 'sealion 5', display: 'BYD Sealion 5' },
+    { base: 'tang', display: 'BYD Tang' },
+    { base: 'seagull', display: 'BYD Seagull' }
+  ];
+
+  function getBaseModel(modelName) {
+    const normalized = modelName.toLowerCase().replace('byd ', '').trim();
+    const found = displayModels.find(dm => normalized.startsWith(dm.base));
+    return found ? found.display : null;
+  }
+
   function groupTicketsByModel(tickets, cars) {
     const grouped = {};
-    cars.forEach(car => { grouped[car.model] = { model: car.model, serving: null }; });
     
+    // Initialize with the 8 display models
+    displayModels.forEach(dm => {
+      grouped[dm.display] = { model: dm.display, serving: null };
+    });
+    
+    // Add serving tickets, grouping variants into base models
     tickets.forEach(ticket => {
-      if (grouped[ticket.model] && ticket.status === 'SERVING') {
-        grouped[ticket.model].serving = ticket;
+      const baseModel = getBaseModel(ticket.model);
+      if (baseModel && grouped[baseModel] && ticket.status === 'SERVING') {
+        // Only show the first serving ticket for each base model
+        if (!grouped[baseModel].serving) {
+          grouped[baseModel].serving = ticket;
+        }
       }
     });
     
@@ -32,12 +59,22 @@
 
   async function fetchTickets() {
     try {
-      const response = await fetch(`http://localhost:3001/api/registrations?branch=${branch}`);
+      const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/registrations?branch=${branch}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       const data = await response.json();
       if (data.success) { 
         tickets = data.data.registrations || [];
+        console.log('Screen updated at', new Date().toLocaleTimeString(), '- tickets:', tickets.length);
+        console.log('Serving tickets:', tickets.filter(t => t.status === 'SERVING').map(t => `${t.queueNo} - ${t.fullName}`));
       }
-    } catch (err) { console.error('Failed to fetch tickets:', err); }
+    } catch (err) { 
+      console.error('Failed to fetch tickets:', err); 
+    }
   }
 
   function playNotificationSound() {
@@ -48,26 +85,67 @@
   }
 
   function handleQueueUpdate(data) { 
+    console.log('Queue update received:', data);
     if (!data.branch || data.branch === branch) {
       fetchTickets();
       playNotificationSound();
     }
   }
 
+  function handleTicketCalled(data) {
+    console.log('Ticket called:', data);
+    if (!data.branch || data.branch === branch) {
+      fetchTickets();
+      playNotificationSound();
+    }
+  }
+
+  function handleTicketCompleted(data) {
+    console.log('Ticket completed:', data);
+    if (!data.branch || data.branch === branch) {
+      fetchTickets();
+    }
+  }
+
   onMount(() => {
-    fetchCars(); fetchTickets(); socket = getSocket();
-    socket.on('connect', () => { isConnected = true; socket.emit('join-branch', branch); });
-    socket.on('disconnect', () => { isConnected = false; });
+    console.log('Screen mounted for branch:', branch);
+    fetchCars(); 
+    fetchTickets(); 
+    socket = getSocket();
+    
+    socket.on('connect', () => { 
+      console.log('Socket connected');
+      isConnected = true; 
+      socket.emit('join-branch', branch);
+      fetchTickets(); // Fetch immediately on connect
+    });
+    
+    socket.on('disconnect', () => { 
+      console.log('Socket disconnected');
+      isConnected = false; 
+    });
+    
+    // Listen to all queue-related events
     socket.on('queue:updated', handleQueueUpdate);
-    socket.on('ticket:called', handleQueueUpdate);
-    const interval = setInterval(fetchTickets, 10000);
+    socket.on('ticket:called', handleTicketCalled);
+    socket.on('ticket:completed', handleTicketCompleted);
+    socket.on('ticket:serving', handleTicketCalled);
+    socket.on('ticket:noshow', handleTicketCompleted);
+    
+    // Refresh every 2 seconds as backup
+    const interval = setInterval(fetchTickets, 2000);
     return () => clearInterval(interval);
   });
 
   onDestroy(() => {
     if (socket) {
-      socket.off('connect'); socket.off('disconnect');
-      socket.off('queue:updated', handleQueueUpdate); socket.off('ticket:called', handleQueueUpdate);
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('queue:updated', handleQueueUpdate);
+      socket.off('ticket:called', handleTicketCalled);
+      socket.off('ticket:completed', handleTicketCompleted);
+      socket.off('ticket:serving', handleTicketCalled);
+      socket.off('ticket:noshow', handleTicketCompleted);
       socket.emit('leave-branch', branch);
     }
   });
@@ -119,7 +197,10 @@
   <!-- Footer -->
   <div class="footer">
     <div class="timestamp">
-      {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+      {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+      <span style="margin-left: 10px; font-size: 0.7rem; opacity: 0.7;">
+        {isConnected ? '🟢 Connected' : '🔴 Disconnected'} • Auto-refresh: 2s
+      </span>
     </div>
   </div>
 </div>
@@ -198,7 +279,7 @@
     50% { opacity: 0.7; }
   }
 
-  /* Grid Container */
+  /* Grid Container - Fixed 4x2 for 8 models */
   .grid-container {
     flex: 1;
     display: grid;
@@ -208,6 +289,26 @@
     padding: 1.5rem 2rem;
     overflow: hidden;
     background: #F9FAFB;
+  }
+
+  /* For larger screens */
+  @media (min-width: 1920px) {
+    .grid-container {
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 1.5rem;
+      padding: 2rem 2.5rem;
+    }
+  }
+
+  /* For medium screens */
+  @media (max-width: 1366px) {
+    .grid-container {
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 1rem;
+      padding: 1.25rem 1.5rem;
+    }
   }
 
   /* Model Card */
@@ -291,9 +392,8 @@
 
   /* Responsive adjustments */
   @media (max-width: 1920px) {
-    .grid-container {
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(2, 1fr);
+    .title {
+      font-size: 1.75rem;
     }
   }
 
@@ -316,13 +416,6 @@
   }
 
   @media (max-width: 1024px) {
-    .grid-container {
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: auto;
-      gap: 1.5rem;
-      padding: 2rem;
-    }
-    
     .title {
       font-size: 1.75rem;
     }
@@ -336,13 +429,7 @@
     }
   }
 
-  /* For 8 models, use 2 rows of 4 */
   @media (min-width: 1920px) {
-    .grid-container {
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-    }
-    
     .model-name {
       font-size: 1.75rem;
     }

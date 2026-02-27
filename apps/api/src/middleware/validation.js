@@ -67,8 +67,8 @@ export const queueNumberValidation = [
   body('queueNo')
     .notEmpty()
     .withMessage('Queue number is required')
-    .matches(/^\d{3}$/)
-    .withMessage('Invalid queue number format (must be NNN)')
+    .matches(/^\d+$/)
+    .withMessage('Invalid queue number format (must be a number)')
 ];
 
 // Branch validation (for body)

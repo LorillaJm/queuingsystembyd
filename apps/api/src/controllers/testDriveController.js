@@ -17,7 +17,7 @@ if (!fs.existsSync(uploadsDir)) {
  */
 export async function saveTestDriveDocuments(req, res) {
   try {
-    const { fullName, mobile, idFront, idBack, signature } = req.body;
+    const { fullName, mobile, idNumber, idFront, idBack, signature } = req.body;
 
     if (!idFront || !idBack || !signature) {
       return res.status(400).json({
@@ -55,6 +55,7 @@ export async function saveTestDriveDocuments(req, res) {
     const metadata = {
       fullName,
       mobile,
+      idNumber,
       timestamp,
       files: {
         idFront: 'id_front.png',

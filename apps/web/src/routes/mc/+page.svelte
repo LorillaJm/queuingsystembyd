@@ -10,9 +10,31 @@
   $: if (branchParam) branch = branchParam.toUpperCase();
   $: ticketsByModel = groupTicketsByModel(tickets, cars);
 
+  // Available car models (only these 8 exact models from TV display)
+  const availableBaseModels = [
+    'byd atto 3',
+    'byd dolphin',
+    'byd emax 7',
+    'byd shark 6',
+    'byd seal 5',
+    'byd sealion 5',
+    'byd tang',
+    'byd seagull'
+  ];
+
+  function isModelAvailable(modelName) {
+    const normalized = modelName.toLowerCase().trim();
+    return availableBaseModels.includes(normalized);
+  }
+
   function groupTicketsByModel(tickets, cars) {
     const grouped = {};
-    cars.forEach(car => { grouped[car.model] = { model: car.model, serving: null, nextWaiting: null, waitingList: [] }; });
+    
+    // Only include available car models
+    const availableCars = cars.filter(car => isModelAvailable(car.model));
+    availableCars.forEach(car => { 
+      grouped[car.model] = { model: car.model, serving: null, nextWaiting: null, waitingList: [] }; 
+    });
     
     const sortedTickets = [...tickets].sort((a, b) => {
       const numA = parseInt(a.queueNo.replace(/\D/g, ''));
@@ -21,6 +43,7 @@
     });
     
     sortedTickets.forEach(ticket => {
+      // Only process tickets for available models
       if (grouped[ticket.model]) {
         if (ticket.status === 'SERVING') {
           grouped[ticket.model].serving = ticket;

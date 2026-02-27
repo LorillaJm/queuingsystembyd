@@ -4,13 +4,17 @@ class Registration {
   constructor(data) {
     this.queueNo = data.queueNo;
     this.fullName = data.fullName;
+    this.email = data.email || null;
     this.mobile = data.mobile;
+    this.idNumber = data.idNumber || null;
     this.model = data.model;
     this.modelId = data.modelId || null;
     this.salesConsultant = data.salesConsultant || null;
     this.branch = data.branch.toUpperCase();
     this.purpose = data.purpose || 'TEST_DRIVE';
     this.status = data.status || 'WAITING';
+    this.remarks = data.remarks || null;
+    this.paymentMode = data.paymentMode || null;
     this.calledAt = data.calledAt || null;
     this.completedAt = data.completedAt || null;
     this.createdAt = data.createdAt || Date.now();

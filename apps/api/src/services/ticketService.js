@@ -12,16 +12,17 @@ import { updateCurrentServing } from './queueGenerator.js';
  * Valid state transitions
  * 
  * WAITING → SERVING (call next or call specific)
+ * WAITING → DONE (skip customer without calling)
+ * WAITING → NOSHOW (mark no-show without calling)
  * SERVING → DONE (mark done)
  * SERVING → NOSHOW (mark no-show)
- * WAITING → NOSHOW (mark no-show without calling)
  * 
  * Invalid transitions (will be rejected):
  * DONE → any state
  * NOSHOW → any state
  */
 const VALID_TRANSITIONS = {
-  WAITING: ['SERVING', 'NOSHOW'],
+  WAITING: ['SERVING', 'DONE', 'NOSHOW'],
   SERVING: ['DONE', 'NOSHOW'],
   DONE: [],
   NOSHOW: []
