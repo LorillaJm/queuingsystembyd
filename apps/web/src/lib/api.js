@@ -1,6 +1,7 @@
-import { PUBLIC_API_URL } from '$env/static/public';
-
-const API_URL = PUBLIC_API_URL || 'http://localhost:3001';
+// Use environment variable or default to localhost for development
+const API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+  ? `${window.location.protocol}//${window.location.hostname}/api`
+  : 'http://localhost:3001';
 
 export async function register(data) {
   const response = await fetch(`${API_URL}/api/register`, {
