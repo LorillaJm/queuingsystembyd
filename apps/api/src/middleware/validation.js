@@ -19,10 +19,10 @@ export const registrationValidation = [
     .withMessage('Invalid mobile number format (8-20 characters)'),
   
   body('carId')
-    .optional()
+    .optional({ values: 'falsy' }) // Allow empty strings, null, undefined
     .trim()
-    .notEmpty()
-    .withMessage('Car ID cannot be empty'),
+    .isLength({ min: 0 })
+    .withMessage('Invalid car ID'),
   
   body('model')
     .optional()

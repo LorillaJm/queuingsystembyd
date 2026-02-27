@@ -36,7 +36,7 @@ export async function register(req, res) {
     }
 
     let modelId = null;
-    let modelName = model;
+    let modelName = model || 'No vehicle selected';
 
     // If carId is provided, validate it and get model details
     if (carId) {
@@ -89,7 +89,7 @@ export async function register(req, res) {
       mobile: mobile.trim(),
       email: email && email.trim() ? email.trim() : null,
       idNumber: idNumber && idNumber.trim() ? idNumber.trim() : null,
-      model: modelName.trim(),
+      model: modelName ? modelName.trim() : 'No vehicle selected',
       modelId,
       salesConsultant: salesConsultant ? salesConsultant.trim() : null,
       branch: branch.toUpperCase(),

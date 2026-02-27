@@ -1,0 +1,13 @@
+{
+  "fullName": "cst",
+  "mobile": "+639456700220",
+  "paymentMode": "CASH",
+  "vehicleModel": "BYD Atto 3",
+  "variants": null,
+  "color": "gray",
+  "timestamp": 1772207843111,
+  "files": {
+    "govId1Front": "gov_id1_front.png",
+    "govId1Back": "gov_id1_back.png"
+  }
+}
