@@ -27,6 +27,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "cors": "^2.8.6",
     "mongodb": "^7.1.0"
   }
 }

@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { register, getCars } from '$lib/api';
+  import { register } from '$lib/api';
+  import { fetchCarsFromFirebase, listenToCars } from '$lib/firebase';
   import { fade, scale } from 'svelte/transition';
 
   let fullName = '';
@@ -117,12 +118,12 @@
     loadingCars = true;
     error = '';
     try {
-      const response = await getCars(branch);
-      if (response.success) {
-        cars = response.data.cars || [];
-      }
+      // Fetch cars directly from Firebase
+      cars = await fetchCarsFromFirebase(branch);
+      console.log('Loaded cars from Firebase:', cars);
     } catch (err) {
-      error = err.message || 'Failed to load car models';
+      console.error('Error loading cars:', err);
+      error = 'Failed to load car models from Firebase';
       cars = [];
     } finally {
       loadingCars = false;
