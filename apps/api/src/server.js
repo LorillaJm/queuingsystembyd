@@ -98,6 +98,24 @@ app.get('/health', (req, res) => {
   res.json(healthcheck);
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'BYD Queue Management API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    environment: NODE_ENV,
+    endpoints: {
+      health: '/health',
+      branches: '/api/branches',
+      cars: '/api/cars?branch=MAIN',
+      registrations: '/api/registrations?branch=MAIN',
+      register: 'POST /api/register'
+    }
+  });
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
