@@ -10,6 +10,17 @@ import {
 } from '../services/ticketService.js';
 
 /**
+ * Helper function to emit socket events to a specific branch room
+ */
+function emitToBranch(io, branch, eventName, data) {
+  if (io) {
+    const roomName = `branch:${branch.toUpperCase()}`;
+    io.to(roomName).emit(eventName, { ...data, branch: branch.toUpperCase() });
+    console.log(`Emitted ${eventName} to ${roomName}:`, data);
+  }
+}
+
+/**
  * Verify staff PIN
  * POST /api/staff/auth
  */
@@ -134,15 +145,12 @@ export async function next(req, res) {
     // Call next ticket using service
     const ticket = await callNextTicket(branch);
 
-    // Emit socket events
-    if (req.io) {
-      req.io.emit('queue:updated', { branch: branch.toUpperCase() });
-      req.io.emit('ticket:called', {
-        queueNo: ticket.queueNo,
-        fullName: ticket.fullName,
-        branch: ticket.branch
-      });
-    }
+    // Emit socket events to branch room
+    emitToBranch(req.io, branch, 'queue:updated', {});
+    emitToBranch(req.io, branch, 'ticket:called', {
+      queueNo: ticket.queueNo,
+      fullName: ticket.fullName
+    });
 
     return res.status(200).json({
       success: true,
@@ -205,15 +213,12 @@ export async function call(req, res) {
     // Call specific ticket using service
     const ticket = await callSpecificTicket(branch, queueNo);
 
-    // Emit socket events
-    if (req.io) {
-      req.io.emit('queue:updated', { branch: branch.toUpperCase() });
-      req.io.emit('ticket:called', {
-        queueNo: ticket.queueNo,
-        fullName: ticket.fullName,
-        branch: ticket.branch
-      });
-    }
+    // Emit socket events to branch room
+    emitToBranch(req.io, branch, 'queue:updated', {});
+    emitToBranch(req.io, branch, 'ticket:called', {
+      queueNo: ticket.queueNo,
+      fullName: ticket.fullName
+    });
 
     return res.status(200).json({
       success: true,
@@ -284,10 +289,11 @@ export async function markDone(req, res) {
     // Mark ticket as done using service
     const ticket = await markTicketDone(branch, queueNo);
 
-    // Emit socket event
-    if (req.io) {
-      req.io.emit('queue:updated', { branch: branch.toUpperCase() });
-    }
+    // Emit socket event to branch room
+    emitToBranch(req.io, branch, 'queue:updated', {});
+    emitToBranch(req.io, branch, 'ticket:completed', {
+      queueNo: ticket.queueNo
+    });
 
     return res.status(200).json({
       success: true,
@@ -357,10 +363,11 @@ export async function noShow(req, res) {
     // Mark ticket as no-show using service
     const ticket = await markTicketNoShow(branch, queueNo);
 
-    // Emit socket event
-    if (req.io) {
-      req.io.emit('queue:updated', { branch: branch.toUpperCase() });
-    }
+    // Emit socket event to branch room
+    emitToBranch(req.io, branch, 'queue:updated', {});
+    emitToBranch(req.io, branch, 'ticket:noshow', {
+      queueNo: ticket.queueNo
+    });
 
     return res.status(200).json({
       success: true,
@@ -472,15 +479,13 @@ export async function nextModel(req, res) {
 
     const ticket = await callNextTicket(branch, model);
 
-    if (req.io) {
-      req.io.emit('queue:updated', { branch: branch.toUpperCase() });
-      req.io.emit('ticket:called', {
-        queueNo: ticket.queueNo,
-        fullName: ticket.fullName,
-        branch: ticket.branch,
-        model: ticket.model
-      });
-    }
+    // Emit socket events to branch room
+    emitToBranch(req.io, branch, 'queue:updated', {});
+    emitToBranch(req.io, branch, 'ticket:called', {
+      queueNo: ticket.queueNo,
+      fullName: ticket.fullName,
+      model: ticket.model
+    });
 
     return res.status(200).json({
       success: true,
