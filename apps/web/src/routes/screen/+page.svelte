@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { getSocket } from '$lib/socket';
-  import { getCars } from '$lib/api';
+  import { getCars, API_URL } from '$lib/api';
   import { fade, scale } from 'svelte/transition';
 
   let socket, branch = 'MAIN', isConnected = false, cars = [], tickets = [], audioElement;
@@ -59,7 +59,6 @@
 
   async function fetchTickets() {
     try {
-      const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/registrations?branch=${branch}`, {
         cache: 'no-store',
         headers: {

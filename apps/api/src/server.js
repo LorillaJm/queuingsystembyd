@@ -41,33 +41,22 @@ const io = new Server(httpServer, {
   pingInterval: 25000
 });
 
-// Security middleware
+// 🔥 CORS MUST BE FIRST - Before all other middleware
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-staff-pin'],
+  credentials: true
+}));
+
+// 🔥 REQUIRED for preflight requests
+app.options('*', cors());
+
+// Security middleware (after CORS)
 app.use(helmet({
   contentSecurityPolicy: NODE_ENV === 'production' ? undefined : false,
   crossOriginEmbedderPolicy: false
 }));
-
-// CORS - Must be before routes
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-staff-pin'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
-}));
-
-// Handle preflight requests
-app.options('*', cors());
 
 // Compression
 app.use(compression());

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { register } from '$lib/api';
+  import { register, API_URL } from '$lib/api';
   import { fetchCarsFromFirebase, listenToCars } from '$lib/firebase';
   import { fade, scale } from 'svelte/transition';
 
@@ -306,7 +306,7 @@
   async function completeTestDrive() {
     try {
       // Send test drive documents to server
-      const response = await fetch('http://localhost:3001/api/testdrive/documents', {
+      const response = await fetch(`${API_URL}/api/testdrive/documents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -405,7 +405,7 @@
 
     try {
       // Send reservation documents to server
-      const response = await fetch('http://localhost:3001/api/reservation/documents', {
+      const response = await fetch(`${API_URL}/api/reservation/documents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

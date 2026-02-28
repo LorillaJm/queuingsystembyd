@@ -32,6 +32,11 @@ export const verifyStaffPin = async (req, res, next) => {
  * Check staff authentication (middleware for protected routes)
  */
 export const checkStaffAuth = async (req, res, next) => {
+  // 🔥 Allow OPTIONS requests to pass through for CORS preflight
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   const pin = req.headers['x-staff-pin'];
 
   if (!pin) {

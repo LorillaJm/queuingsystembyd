@@ -1,158 +1,163 @@
-# Deploy Backend API to Render
+# Render API Deployment Guide
 
-## Step 1: Sign Up for Render
+## Current Status
 
-1. Go to https://render.com/
-2. Click "Get Started for Free"
-3. Sign up with your GitHub account
-4. Authorize Render to access your repositories
+✅ **Firebase Hosting Deployed**: https://testdrive-17e53.web.app
+✅ **Firebase Config**: Correct config in `apps/web/src/lib/firebase.js`
+✅ **CORS Code**: Enhanced CORS configuration in `apps/api/src/server.js`
+❌ **Render API**: Returning 404 errors - needs configuration
 
-## Step 2: Create New Web Service
+## The Problem
 
-1. Click "New +" button → "Web Service"
-2. Connect your GitHub repository: `LorillaJm/queuingsystembyd`
-3. Configure the service:
+Your Render API at `https://queuingsystembyd-api.onrender.com` is returning 404 errors because:
+1. The "Root Directory" is not set to `apps/api` in Render dashboard
+2. Environment variables may not be configured correctly
 
-### Basic Settings:
-- **Name:** `byd-queue-api`
-- **Region:** Singapore (closest to Philippines)
-- **Branch:** `main`
-- **Root Directory:** `apps/api`
-- **Runtime:** Node
-- **Build Command:** `npm install`
-- **Start Command:** `npm start`
+## Step-by-Step Fix
 
-### Instance Type:
-- Select **Free** (0 USD/month)
+### 1. Configure Render Dashboard
 
-## Step 3: Add Environment Variables
+Go to: https://dashboard.render.com
 
-Click "Advanced" and add these environment variables:
+1. **Select your API service** (queuingsystembyd-api)
 
-### Required Variables:
+2. **Set Root Directory**:
+   - Go to "Settings" tab
+   - Find "Root Directory" field
+   - Set it to: `apps/api`
+   - Click "Save Changes"
 
-1. **NODE_ENV**
-   - Value: `production`
+3. **Configure Environment Variables**:
+   - Go to "Environment" tab
+   - Add/Update these variables:
 
-2. **PORT**
-   - Value: `10000`
-
-3. **FIREBASE_DATABASE_URL**
-   - Value: `https://testdrive-17e53-default-rtdb.asia-southeast1.firebasedatabase.app`
-
-4. **STAFF_PIN**
-   - Value: `1234` (or your preferred PIN)
-
-5. **FIREBASE_SERVICE_ACCOUNT** (Important!)
-   - Click "Add from .env"
-   - Paste your entire Firebase service account JSON as a single line:
    ```
-   {"type":"service_account","project_id":"testdrive-17e53",...}
+   PORT=8080
+   NODE_ENV=production
+   FIREBASE_DATABASE_URL=https://testdrive-17e53-default-rtdb.asia-southeast1.firebasedatabase.app
+   STAFF_PIN=1234
+   CORS_ORIGIN=http://localhost:5173,https://queuingsystembyd-web.vercel.app,https://testdrive-17e53.web.app,https://testdrive-17e53.firebaseapp.com
+   TZ=Asia/Manila
    ```
 
-## Step 4: Deploy
+   **CRITICAL**: Make sure `CORS_ORIGIN` includes ALL your frontend URLs:
+   - `http://localhost:5173` (local development)
+   - `https://queuingsystembyd-web.vercel.app` (Vercel deployment)
+   - `https://testdrive-17e53.web.app` (Firebase Hosting)
+   - `https://testdrive-17e53.firebaseapp.com` (Firebase alternate URL)
 
-1. Click "Create Web Service"
-2. Wait for deployment (5-10 minutes)
-3. Once deployed, you'll get a URL like: `https://byd-queue-api.onrender.com`
+4. **Add Firebase Service Account**:
+   - In "Environment" tab, click "Add Secret File"
+   - Name: `GOOGLE_APPLICATION_CREDENTIALS`
+   - Path: `/etc/secrets/firebase-service-account.json`
+   - Content: Copy from `apps/api/firebase-service-account.json`
 
-## Step 5: Update Frontend to Use API URL
+5. **Manual Redeploy**:
+   - Go to "Manual Deploy" section
+   - Click "Deploy latest commit"
+   - Wait 2-5 minutes for deployment to complete
 
-After API is deployed, update Vercel environment variable:
+### 2. Verify Deployment
 
-1. Go to your Vercel project
-2. Settings → Environment Variables
-3. Update `PUBLIC_API_URL`:
-   - Value: `https://byd-queue-api.onrender.com` (your Render URL)
-4. Redeploy frontend
+After deployment completes, test these URLs in your browser:
 
-## Step 6: Initialize Firebase Database
+1. **Health Check**:
+   ```
+   https://queuingsystembyd-api.onrender.com/health
+   ```
+   Should return:
+   ```json
+   {
+     "status": "ok",
+     "timestamp": "...",
+     "uptime": 123,
+     "environment": "production",
+     "timezone": "Asia/Manila",
+     "firebase": "connected"
+   }
+   ```
 
-After API is deployed, run the initialization:
+2. **Root Endpoint**:
+   ```
+   https://queuingsystembyd-api.onrender.com/
+   ```
+   Should return API info with available endpoints
 
-```bash
-# Visit this URL in your browser to initialize:
-https://byd-queue-api.onrender.com/api/health
+3. **Cars Endpoint**:
+   ```
+   https://queuingsystembyd-api.onrender.com/api/cars?branch=MAIN
+   ```
+   Should return list of cars
 
-# Then initialize the database by calling:
-curl -X POST https://byd-queue-api.onrender.com/api/init
-```
+### 3. Test from Frontend
 
-Or use the init script locally pointing to production:
-```bash
-# Update apps/api/.env temporarily with production URL
-# Then run:
-npm run init-firebase --workspace=apps/api
-```
+Once API is working:
 
-## Step 7: Test Your Deployment
+1. **Open Firebase Hosting**: https://testdrive-17e53.web.app
+2. **Check Console**: Open browser DevTools (F12) → Console tab
+3. **Look for**:
+   - "Loaded cars from Firebase:" (should show cars)
+   - No CORS errors
+   - No 404 errors
 
-1. Visit your Vercel frontend URL
-2. Try registering a customer
-3. Check if queue number is generated
-4. Test staff panel login
-5. Test MC view and display screen
+### 4. If Still Getting CORS Errors
 
-## Troubleshooting
+If you still see CORS errors after fixing Render:
 
-### API not starting:
-- Check Render logs: Dashboard → Your Service → Logs
-- Verify all environment variables are set
-- Make sure Firebase credentials are correct
-
-### Frontend can't connect to API:
-- Check CORS settings in `apps/api/src/server.js`
-- Verify `PUBLIC_API_URL` in Vercel matches your Render URL
-- Check browser console for errors
-
-### Database errors:
-- Verify `FIREBASE_DATABASE_URL` is correct
-- Check Firebase service account JSON is valid
-- Ensure Firebase Realtime Database is enabled
+1. **Check the exact error message** in browser console
+2. **Verify the origin** being blocked
+3. **Add that origin** to `CORS_ORIGIN` in Render environment variables
+4. **Redeploy** on Render
 
 ## Important Notes
 
-### Free Tier Limitations:
-- Render free tier spins down after 15 minutes of inactivity
-- First request after spin-down takes 30-60 seconds
-- Good for testing, but consider paid tier for production event
+### Render Free Tier Behavior
+- **Spins down** after 15 minutes of inactivity
+- **Takes 30-60 seconds** to wake up on first request
+- First request may timeout - just retry
 
-### For Production Event (Feb 28, 2026):
-Consider upgrading to Render's paid tier ($7/month) for:
-- No spin-down delays
-- Better performance
-- More reliable for live event
+### Firebase Direct Connection
+Your app now loads cars directly from Firebase, so:
+- Car dropdown works even if API is down
+- Only registration submission needs API
+- Better performance and reliability
 
-## Alternative: Deploy to Railway
+### Git Push Not Required
+The CORS code changes are already in your local files. You don't need to push to Git unless you want to. Render just needs the correct configuration in the dashboard.
 
-If Render doesn't work, try Railway:
+## Troubleshooting
 
-1. Go to https://railway.app/
-2. Sign in with GitHub
-3. New Project → Deploy from GitHub
-4. Select your repository
-5. Set Root Directory: `apps/api`
-6. Add same environment variables
-7. Deploy!
+### "404 Not Found" on /health
+- Root Directory not set to `apps/api`
+- Go to Render Settings → Set Root Directory → Redeploy
 
-Railway also has a free tier and is very reliable.
+### "CORS policy" errors
+- Missing origin in CORS_ORIGIN environment variable
+- Add the origin to CORS_ORIGIN → Redeploy
 
-## Your Deployment URLs
+### "Firebase initialization failed"
+- FIREBASE_DATABASE_URL not set
+- Firebase service account file not uploaded
+- Check Environment tab in Render
 
-After deployment, you'll have:
+### API not responding
+- Free tier may be sleeping
+- Wait 60 seconds and retry
+- Check Render logs for errors
 
-- **Frontend:** https://your-project.vercel.app
-- **Backend API:** https://byd-queue-api.onrender.com
-- **Registration:** https://your-project.vercel.app/
-- **Staff Panel:** https://your-project.vercel.app/staff
-- **MC View:** https://your-project.vercel.app/mc?branch=MAIN
-- **TV Display:** https://your-project.vercel.app/screen?branch=MAIN
+## Quick Reference
+
+**Firebase Hosting**: https://testdrive-17e53.web.app
+**Vercel**: https://queuingsystembyd-web.vercel.app
+**Render API**: https://queuingsystembyd-api.onrender.com
+**Render Dashboard**: https://dashboard.render.com
 
 ## Next Steps
 
-1. Deploy API to Render (follow steps above)
-2. Get your API URL
-3. Update Vercel environment variable
-4. Test everything
-5. Seed test data if needed
-6. Ready for your event! 🎉
+1. ✅ Configure Render dashboard (Root Directory + Environment Variables)
+2. ✅ Manual redeploy on Render
+3. ✅ Test /health endpoint
+4. ✅ Test Firebase Hosting app
+5. ✅ Verify no CORS errors
+
+Once these steps are complete, your app will be fully functional!

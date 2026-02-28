@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { getSocket } from '$lib/socket';
-  import { getCars } from '$lib/api';
+  import { getCars, API_URL } from '$lib/api';
   import { fade, scale } from 'svelte/transition';
 
   let socket, branch = 'MAIN', isConnected = false, cars = [], tickets = [], lastUpdate = new Date();
@@ -69,7 +69,7 @@
 
   async function fetchTickets() {
     try {
-      const response = await fetch(`http://localhost:3001/api/registrations?branch=${branch}`);
+      const response = await fetch(`${API_URL}/api/registrations?branch=${branch}`);
       const data = await response.json();
       if (data.success) { 
         tickets = data.data.registrations || []; 

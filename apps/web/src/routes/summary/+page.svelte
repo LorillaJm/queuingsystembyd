@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
+  import { API_URL } from '$lib/api';
 
   let authenticated = false;
   let pin = '';
@@ -25,7 +26,6 @@
     : activeTickets;
   $: displayedTickets = entriesPerPage === 'all' ? filteredTickets : filteredTickets.slice(0, parseInt(entriesPerPage));
 
-  const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3001';
   const SUMMARY_PIN = '9999'; // Secret PIN for summary page
 
   async function handleLogin(e) {

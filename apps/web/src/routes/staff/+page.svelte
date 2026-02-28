@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { getSocket } from '$lib/socket';
-  import { getCars } from '$lib/api';
+  import { getCars, API_URL } from '$lib/api';
   import { fade } from 'svelte/transition';
 
   let socket, authenticated = false, pin = '', error = '', loading = false;
@@ -57,7 +57,7 @@
     loading = true;
     error = '';
     try {
-      const response = await fetch('http://localhost:3001/api/staff/auth', {
+      const response = await fetch(`${API_URL}/api/staff/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin })
@@ -89,7 +89,7 @@
   async function fetchTickets() {
     try {
       const storedPin = localStorage.getItem('staffPin');
-      const response = await fetch(`http://localhost:3001/api/registrations?branch=${branch}`);
+      const response = await fetch(`${API_URL}/api/registrations?branch=${branch}`);
       const data = await response.json();
       if (data.success) {
         tickets = data.data.registrations || [];
@@ -108,7 +108,7 @@
   async function callNextForModel(model) {
     try {
       const storedPin = localStorage.getItem('staffPin');
-      const response = await fetch('http://localhost:3001/api/staff/next-model', {
+      const response = await fetch(`${API_URL}/api/staff/next-model`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@
     if (!confirm('Mark this customer as done and call next?')) return;
     try {
       const storedPin = localStorage.getItem('staffPin');
-      const response = await fetch('http://localhost:3001/api/staff/mark-done', {
+      const response = await fetch(`${API_URL}/api/staff/mark-done`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

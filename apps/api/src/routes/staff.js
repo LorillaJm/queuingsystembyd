@@ -33,6 +33,11 @@ import {
 
 const router = express.Router();
 
+// 🔥 Handle preflight for all staff routes
+router.options('*', (req, res) => {
+  res.status(200).end();
+});
+
 /**
  * POST /api/staff/auth
  * Verify staff PIN

@@ -2,15 +2,16 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, get } from 'firebase/database';
 
-// Firebase configuration
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", // Replace with your actual API key
+  apiKey: "AIzaSyCifeBZ8hJgIkeZWX2ltcMJpF0RduRNPk4",
   authDomain: "testdrive-17e53.firebaseapp.com",
   databaseURL: "https://testdrive-17e53-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "testdrive-17e53",
-  storageBucket: "testdrive-17e53.appspot.com",
-  messagingSenderId: "XXXXXXXXXXXX",
-  appId: "1:XXXXXXXXXXXX:web:XXXXXXXXXXXXXXXXXXXXXXXX"
+  storageBucket: "testdrive-17e53.firebasestorage.app",
+  messagingSenderId: "555809128980",
+  appId: "1:555809128980:web:4c0d62cd46e7e2182f5d01",
+  measurementId: "G-LZ0GJZ6QR1"
 };
 
 // Initialize Firebase
