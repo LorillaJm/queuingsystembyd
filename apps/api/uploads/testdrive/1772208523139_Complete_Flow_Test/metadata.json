@@ -1,0 +1,11 @@
+{
+  "fullName": "Complete Flow Test",
+  "mobile": "+639888888888",
+  "idNumber": "N01-88-888888",
+  "timestamp": 1772208523139,
+  "files": {
+    "idFront": "id_front.png",
+    "idBack": "id_back.png",
+    "signature": "signature.png"
+  }
+}
