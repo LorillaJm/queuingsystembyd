@@ -45,7 +45,7 @@ const io = new Server(httpServer, {
 app.use(cors({
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-staff-pin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-staff-pin', 'cache-control', 'pragma', 'expires'],
   credentials: true
 }));
 
