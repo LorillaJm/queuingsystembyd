@@ -1,5 +1,5 @@
-// Use environment variable or default to localhost for development
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8080';
+// Use environment variable or default to production API
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://queuingsystembyd-api.onrender.com';
 
 export async function register(data) {
   const response = await fetch(`${API_URL}/api/register`, {
