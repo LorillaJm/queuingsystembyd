@@ -1,23 +1,20 @@
 import { io } from 'socket.io-client';
+import { PUBLIC_SOCKET_URL } from '$env/static/public';
 
 let socket;
 
 // Determine socket URL based on environment
 const getSocketUrl = () => {
-  if (typeof window === 'undefined') return 'http://localhost:3001';
-  
-  // Use environment variable if available
-  if (import.meta.env.PUBLIC_SOCKET_URL) {
-    return import.meta.env.PUBLIC_SOCKET_URL;
-  }
-  
-  // In development, use localhost
-  return 'http://localhost:3001';
+  // Always use the environment variable from SvelteKit
+  return PUBLIC_SOCKET_URL || 'https://queuingsystembyd.onrender.com';
 };
 
 export function getSocket() {
   if (!socket) {
-    socket = io(getSocketUrl(), {
+    const socketUrl = getSocketUrl();
+    console.log('Connecting to socket:', socketUrl);
+    
+    socket = io(socketUrl, {
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,

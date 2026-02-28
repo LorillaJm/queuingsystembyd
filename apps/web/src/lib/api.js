@@ -1,5 +1,7 @@
+import { PUBLIC_API_URL } from '$env/static/public';
+
 // Use environment variable or default to production API
-const API_URL = import.meta.env.PUBLIC_API_URL || 'https://queuingsystembyd.onrender.com';
+const API_URL = PUBLIC_API_URL || 'https://queuingsystembyd.onrender.com';
 
 // Export API_URL for use in other components
 export { API_URL };
