@@ -150,6 +150,10 @@
       validationErrors.salesConsultant = 'Please select a sales consultant';
     }
 
+    if (!carId) {
+      validationErrors.carId = 'Please select a vehicle model';
+    }
+
     if (purposes.length === 0) {
       validationErrors.purposes = 'Please select at least one purpose';
     }
@@ -981,7 +985,7 @@
         <!-- Vehicle Model -->
         <div class="space-y-2">
           <label for="carId" class="block text-sm font-semibold text-gray-900">
-            Vehicle of Interest <span class="text-gray-500 font-normal">(Optional)</span>
+            Vehicle of Interest
           </label>
           {#if loadingCars}
             <div class="w-full px-4 py-4 rounded-xl bg-gray-50 text-gray-500">
@@ -995,13 +999,18 @@
             <select
               id="carId"
               bind:value={carId}
+              required
               class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all bg-white"
+              class:border-red-500={validationErrors.carId}
             >
-              <option value="">Select a BYD model (optional)</option>
+              <option value="">Select a BYD model</option>
               {#each cars as car}
                 <option value={car.carId}>{formatCarName(car.model)}</option>
               {/each}
             </select>
+          {/if}
+          {#if validationErrors.carId}
+            <p class="text-sm text-red-600">{validationErrors.carId}</p>
           {/if}
         </div>
 
