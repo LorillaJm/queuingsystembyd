@@ -4,6 +4,7 @@ services:
     env: node
     region: singapore
     plan: free
+    rootDir: apps/api
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -18,6 +19,6 @@ services:
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false
       - key: CORS_ORIGIN
-        value: https://queuingsystembyd-web.vercel.app,http://localhost:5173
+        value: https://queuingsystembyd-web.vercel.app,https://testdrive-17e53.web.app,https://testdrive-17e53.firebaseapp.com,http://localhost:5173
       - key: TZ
         value: Asia/Manila
