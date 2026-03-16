@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { API_URL } from '$lib/api';
+  import StaffSidebar from '$lib/components/StaffSidebar.svelte';
 
   let authenticated = false;
   let pin = '';
@@ -134,6 +135,9 @@
 
 <svelte:head><title>Customer Summary - {branch}</title></svelte:head>
 
+<!-- Sidebar -->
+<StaffSidebar {authenticated} onLogout={handleLogout} />
+
 {#if !authenticated}
   <!-- Login Screen -->
   <div class="min-h-screen flex items-center justify-center bg-white">
@@ -182,39 +186,42 @@
 
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div class="px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="bg-gray-100 text-gray-900 px-4 py-2 rounded-full font-semibold text-sm">
-            {branch}
+      <div class="px-4 sm:px-6 py-3 sm:py-4">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <!-- Left side with spacing for menu button -->
+          <div class="flex items-center gap-2 sm:gap-4 ml-12 sm:ml-14">
+            <div class="bg-gray-100 text-gray-900 px-2 sm:px-4 py-1 sm:py-2 rounded-full font-semibold text-xs sm:text-sm">
+              {branch}
+            </div>
+            <h1 class="text-lg sm:text-2xl font-bold text-gray-900">Customer Summary</h1>
           </div>
-          <h1 class="text-2xl font-bold text-gray-900">Customer Summary</h1>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="text-sm text-gray-500">{lastUpdate.toLocaleTimeString()}</div>
-          <button 
-            on:click={handleRefresh}
-            class="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-            </svg>
-            Refresh
-          </button>
-          <button 
-            on:click={downloadExcel}
-            class="px-4 py-2 bg-green-600 text-white rounded-full text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-            Download Excel
-          </button>
-          <button 
-            on:click={handleLogout}
-            class="px-4 py-2 bg-gray-100 text-gray-900 rounded-full text-sm font-semibold hover:bg-gray-200 transition-colors"
-          >
-            Logout
-          </button>
+          <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div class="text-xs sm:text-sm text-gray-500 hidden sm:block">{lastUpdate.toLocaleTimeString()}</div>
+            <button 
+              on:click={handleRefresh}
+              class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-full text-xs sm:text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1 sm:gap-2"
+            >
+              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              <span class="hidden sm:inline">Refresh</span>
+            </button>
+            <button 
+              on:click={downloadExcel}
+              class="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 text-white rounded-full text-xs sm:text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-1 sm:gap-2"
+            >
+              <svg class="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span class="hidden sm:inline">Download</span>
+            </button>
+            <button 
+              on:click={handleLogout}
+              class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-900 rounded-full text-xs sm:text-sm font-semibold hover:bg-gray-200 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </header>

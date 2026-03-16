@@ -51,8 +51,19 @@ class Registration {
   }
 
   static async update(id, updates) {
+    // Ensure we're updating an existing record
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new Error(`Cannot update: Registration with ID ${id} not found`);
+    }
+    
+    // Add timestamp
     updates.updatedAt = Date.now();
+    
+    // Update only the specified fields (Firebase .update() merges, doesn't replace)
     await this.getRef().child(id).update(updates);
+    
+    // Return the updated record
     return this.findById(id);
   }
 

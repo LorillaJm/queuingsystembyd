@@ -4,8 +4,11 @@
   import { getSocket } from '$lib/socket';
   import { getCars, API_URL } from '$lib/api';
   import { fade, scale } from 'svelte/transition';
+  import StaffSidebar from '$lib/components/StaffSidebar.svelte';
 
   let socket, branch = 'MAIN', isConnected = false, cars = [], tickets = [], lastUpdate = new Date();
+  let authenticated = true; // MC page is always accessible
+  
   $: branchParam = $page.url.searchParams.get('branch');
   $: if (branchParam) branch = branchParam.toUpperCase();
   $: ticketsByModel = groupTicketsByModel(tickets, cars);
@@ -101,23 +104,27 @@
 
 <svelte:head><title>MC Announcer - {branch}</title></svelte:head>
 
+<!-- Sidebar -->
+<StaffSidebar {authenticated} onLogout={() => {}} />
+
 <div class="min-h-screen bg-white">
   <!-- Header -->
   <header class="border-b border-gray-200 bg-white sticky top-0 z-10">
-    <div class="max-w-full mx-auto px-6 py-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="bg-gray-100 text-gray-900 px-4 py-2 rounded-full font-semibold text-sm">
+    <div class="max-w-full mx-auto px-4 sm:px-6 py-3 sm:py-4">
+      <div class="flex items-center justify-between gap-4">
+        <!-- Left side with spacing for menu button -->
+        <div class="flex items-center gap-2 sm:gap-4 ml-12 sm:ml-14">
+          <div class="bg-gray-100 text-gray-900 px-2 sm:px-4 py-1 sm:py-2 rounded-full font-semibold text-xs sm:text-sm">
             {branch}
           </div>
-          <h1 class="text-2xl font-bold text-gray-900">MC Announcer</h1>
+          <h1 class="text-lg sm:text-2xl font-bold text-gray-900">MC Announcer</h1>
         </div>
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full">
+        <div class="flex items-center gap-2 sm:gap-4">
+          <div class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-50 rounded-full">
             <div class="w-2 h-2 rounded-full {isConnected ? 'bg-green-500' : 'bg-red-500'}"></div>
-            <span class="text-sm text-gray-600">{isConnected ? 'Live' : 'Offline'}</span>
+            <span class="text-xs sm:text-sm text-gray-600">{isConnected ? 'Live' : 'Offline'}</span>
           </div>
-          <div class="text-sm text-gray-500">
+          <div class="text-xs sm:text-sm text-gray-500 hidden sm:block">
             {lastUpdate.toLocaleTimeString()}
           </div>
         </div>

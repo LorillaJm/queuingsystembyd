@@ -4,6 +4,7 @@
   import { getSocket } from '$lib/socket';
   import { getCars, API_URL } from '$lib/api';
   import { fade } from 'svelte/transition';
+  import StaffSidebar from '$lib/components/StaffSidebar.svelte';
 
   let socket, authenticated = false, pin = '', error = '', loading = false;
   let branch = 'MAIN', cars = [], tickets = [], lastUpdate = new Date();
@@ -250,6 +251,9 @@
 
 <svelte:head><title>Staff Panel - {branch}</title></svelte:head>
 
+<!-- Sidebar -->
+<StaffSidebar {authenticated} onLogout={handleLogout} />
+
 {#if !authenticated}
   <!-- Login Screen -->
   <div class="min-h-screen flex items-center justify-center bg-white">
@@ -281,7 +285,7 @@
   </div>
 {:else}
   <!-- Staff Panel -->
-  <div class="h-screen flex flex-col bg-white">
+  <div class="h-screen flex flex-col bg-white transition-all duration-300" style="margin-left: 0;">
     <!-- Success Toast -->
     {#if successMessage}
       <div 
@@ -298,18 +302,19 @@
 
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 flex-shrink-0">
-      <div class="px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="bg-gray-100 text-gray-900 px-4 py-2 rounded-full font-semibold text-sm">
+      <div class="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
+        <!-- Left side with spacing for menu button -->
+        <div class="flex items-center gap-2 sm:gap-4 ml-12 sm:ml-14">
+          <div class="bg-gray-100 text-gray-900 px-2 sm:px-4 py-1 sm:py-2 rounded-full font-semibold text-xs sm:text-sm">
             {branch}
           </div>
-          <h1 class="text-2xl font-bold text-gray-900">Staff Control</h1>
+          <h1 class="text-lg sm:text-2xl font-bold text-gray-900">Staff Control</h1>
         </div>
-        <div class="flex items-center gap-4">
-          <div class="text-sm text-gray-500">{lastUpdate.toLocaleTimeString()}</div>
+        <div class="flex items-center gap-2 sm:gap-4">
+          <div class="text-xs sm:text-sm text-gray-500 hidden sm:block">{lastUpdate.toLocaleTimeString()}</div>
           <button 
             on:click={handleLogout}
-            class="px-4 py-2 bg-gray-100 text-gray-900 rounded-full text-sm font-semibold hover:bg-gray-200 transition-colors"
+            class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-900 rounded-full text-xs sm:text-sm font-semibold hover:bg-gray-200 transition-colors"
           >
             Logout
           </button>

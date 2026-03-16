@@ -462,15 +462,16 @@ export async function searchRegistrations(req, res) {
       });
     }
 
-    // Get all registrations for the branch
-    const allRegistrations = await Registration.getQueueByBranch(branch, ['WAITING', 'SERVING', 'DONE']);
+    // Get today's registrations for the branch (all statuses)
+    const allRegistrations = await Registration.getTodayRegistrations(branch);
 
-    // Filter by name or queue number
+    // Filter by name, queue number, or mobile
     const searchTerm = query.trim().toLowerCase();
     const results = allRegistrations.filter(r => 
       r.fullName.toLowerCase().includes(searchTerm) ||
       r.queueNo.toLowerCase().includes(searchTerm) ||
-      (r.mobile && r.mobile.includes(searchTerm))
+      (r.mobile && r.mobile.includes(searchTerm)) ||
+      (r.idNumber && r.idNumber.toLowerCase().includes(searchTerm))
     );
 
     return res.status(200).json({
@@ -480,11 +481,14 @@ export async function searchRegistrations(req, res) {
         queueNo: r.queueNo,
         fullName: r.fullName,
         mobile: r.mobile,
+        email: r.email,
+        idNumber: r.idNumber,
         model: r.model,
         carId: r.modelId,
         salesConsultant: r.salesConsultant,
         branch: r.branch,
         purpose: r.purpose,
+        paymentMode: r.paymentMode,
         status: r.status,
         createdAt: r.createdAt
       })),
@@ -508,7 +512,7 @@ export async function searchRegistrations(req, res) {
 export async function updateRegistrationById(req, res) {
   try {
     const { id } = req.params;
-    const { fullName, mobile, email, idNumber, carId, salesConsultant } = req.body;
+    const { fullName, mobile, email, idNumber, carId, salesConsultant, purpose, paymentMode } = req.body;
 
     // Find registration
     const registration = await Registration.findById(id);
@@ -527,6 +531,8 @@ export async function updateRegistrationById(req, res) {
     if (email !== undefined) updateData.email = email ? email.trim() : null;
     if (idNumber !== undefined) updateData.idNumber = idNumber ? idNumber.trim() : null;
     if (salesConsultant !== undefined) updateData.salesConsultant = salesConsultant ? salesConsultant.trim() : null;
+    if (purpose !== undefined) updateData.purpose = purpose;
+    if (paymentMode !== undefined) updateData.paymentMode = paymentMode ? paymentMode.trim() : null;
 
     // If carId is provided and not empty, validate and get model name
     if (carId && carId.trim()) {

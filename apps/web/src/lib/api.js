@@ -242,7 +242,13 @@ export async function searchRegistrations(query, branch = 'MAIN') {
     throw new Error(error.message || 'Failed to search registrations');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('API searchRegistrations raw response:', result);
+  if (result.data && result.data.length > 0) {
+    console.log('First result from API:', result.data[0]);
+    console.log('First result idNumber:', result.data[0].idNumber);
+  }
+  return result;
 }
 
 // Update registration

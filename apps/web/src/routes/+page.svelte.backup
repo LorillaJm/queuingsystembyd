@@ -165,40 +165,24 @@
   async function togglePurpose(purposeValue) {
     if (purposes.includes(purposeValue)) {
       purposes = purposes.filter(p => p !== purposeValue);
-      
-      // Clear related data when unchecking
-      if (purposeValue === 'TEST_DRIVE') {
-        idFrontImage = null;
-        idBackImage = null;
-        signatureData = null;
-      } else if (purposeValue === 'RESERVATION') {
-        govId1Front = null;
-        govId1Back = null;
-        govId2Front = null;
-        govId2Back = null;
-        paymentMode = '';
-        selectedVehicleModel = '';
-        selectedVariants = [];
-        selectedColor = '';
-      }
     } else {
       purposes = [...purposes, purposeValue];
-      
-      // If Test Drive is selected, show modal immediately
-      if (purposeValue === 'TEST_DRIVE') {
-        showTestDriveModal = true;
-        testDriveStep = 'id-scan';
+    }
+    
+    // If Test Drive is selected and modal not shown yet, show it
+    if (purposeValue === 'TEST_DRIVE' && purposes.includes('TEST_DRIVE') && !signatureData) {
+      showTestDriveModal = true;
+      testDriveStep = 'id-scan';
+    }
+    
+    // If Reservation is selected and modal not shown yet, show it
+    if (purposeValue === 'RESERVATION' && purposes.includes('RESERVATION') && !paymentMode) {
+      // Load cars if not already loaded
+      if (cars.length === 0) {
+        await loadCars();
       }
-      
-      // If Reservation is selected, show modal immediately
-      if (purposeValue === 'RESERVATION') {
-        // Load cars if not already loaded
-        if (cars.length === 0) {
-          await loadCars();
-        }
-        showReservationModal = true;
-        reservationStep = 'id-scan';
-      }
+      showReservationModal = true;
+      reservationStep = 'id-scan';
     }
   }
 
@@ -320,27 +304,7 @@
   }
 
   async function completeTestDrive() {
-    loading = true;
     try {
-      // Validate required fields
-      if (!idFrontImage || !idBackImage) {
-        alert('Please upload both front and back of your ID');
-        loading = false;
-        return;
-      }
-      
-      if (!signatureData) {
-        alert('Please sign the waiver');
-        loading = false;
-        return;
-      }
-      
-      if (!idNumber || idNumber.trim() === '') {
-        alert('Please enter your license number');
-        loading = false;
-        return;
-      }
-
       // Send test drive documents to server
       const response = await fetch(`${API_URL}/api/testdrive/documents`, {
         method: 'POST',
@@ -362,27 +326,15 @@
       if (!result.success) {
         console.error('Failed to save test drive documents:', result.message);
         alert('Failed to save documents. Please try again.');
-        loading = false;
         return;
       }
 
       console.log('Test Drive documents saved successfully:', result.data);
-      
-      // Close modal and show success message
       showTestDriveModal = false;
-      
-      // Show a brief success notification
-      const successMsg = document.createElement('div');
-      successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      successMsg.textContent = '✓ Test Drive documents saved successfully!';
-      document.body.appendChild(successMsg);
-      setTimeout(() => successMsg.remove(), 3000);
-      
+      // Proceed with registration
     } catch (err) {
       console.error('Error saving test drive documents:', err);
       alert('Failed to save documents. Please try again.');
-    } finally {
-      loading = false;
     }
   }
 
@@ -451,7 +403,6 @@
       return;
     }
 
-    loading = true;
     try {
       // Send reservation documents to server
       const response = await fetch(`${API_URL}/api/reservation/documents`, {
@@ -478,27 +429,15 @@
       if (!result.success) {
         console.error('Failed to save reservation documents:', result.message);
         alert('Failed to save documents. Please try again.');
-        loading = false;
         return;
       }
 
       console.log('Reservation documents saved successfully:', result.data);
-      
-      // Close modal and show success message
       showReservationModal = false;
-      
-      // Show a brief success notification
-      const successMsg = document.createElement('div');
-      successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      successMsg.textContent = '✓ Reservation documents saved successfully!';
-      document.body.appendChild(successMsg);
-      setTimeout(() => successMsg.remove(), 3000);
-      
+      // Proceed with registration
     } catch (err) {
       console.error('Error saving reservation documents:', err);
       alert('Failed to save documents. Please try again.');
-    } finally {
-      loading = false;
     }
   }
 
@@ -525,56 +464,15 @@
       return;
     }
 
-    // Check for potential duplicates before submitting
-    try {
-      const { searchRegistrations } = await import('$lib/api');
-      const duplicateCheck = await searchRegistrations(fullName.trim(), branch);
-      
-      if (duplicateCheck.success && duplicateCheck.data.length > 0) {
-        // Check if any result has the same mobile number
-        const exactMatch = duplicateCheck.data.find(r => 
-          r.mobile === mobile.trim() || 
-          r.fullName.toLowerCase() === fullName.trim().toLowerCase()
-        );
-        
-        if (exactMatch) {
-          const confirmMsg = `⚠️ POTENTIAL DUPLICATE DETECTED!\n\n` +
-            `Found existing registration:\n` +
-            `Name: ${exactMatch.fullName}\n` +
-            `Queue: ${exactMatch.queueNo}\n` +
-            `Mobile: ${exactMatch.mobile}\n` +
-            `Car: ${exactMatch.model}\n` +
-            `Status: ${exactMatch.status}\n\n` +
-            `Do you want to:\n` +
-            `• Click OK to CREATE A NEW registration (will have different queue number)\n` +
-            `• Click Cancel to EDIT the existing registration instead`;
-          
-          const createNew = confirm(confirmMsg);
-          
-          if (!createNew) {
-            // User wants to edit existing - open edit modal
-            await openEditModal(exactMatch);
-            return;
-          }
-          // User confirmed to create new - continue with submission
-        }
-      }
-    } catch (err) {
-      console.error('Duplicate check error:', err);
-      // Continue with submission even if duplicate check fails
-    }
-
-    // If Test Drive is selected but documents not uploaded, show modal
-    if (purposes.includes('TEST_DRIVE') && (!idFrontImage || !idBackImage || !signatureData)) {
+    // If Test Drive is selected and modal not completed, show modal
+    if (purposes.includes('TEST_DRIVE') && !signatureData) {
       showTestDriveModal = true;
-      testDriveStep = 'id-scan';
       return;
     }
 
-    // If Reservation is selected but documents not uploaded, show modal
+    // If Reservation is selected and modal not completed, show modal
     if (purposes.includes('RESERVATION') && !paymentMode) {
       showReservationModal = true;
-      reservationStep = 'id-scan';
       return;
     }
 
@@ -619,8 +517,6 @@
           purposes: purposes,
           hasQueue: hasQueue
         };
-        
-        // Reset form
         fullName = '';
         mobile = '';
         email = '';
@@ -637,9 +533,6 @@
         govId2Front = null;
         govId2Back = null;
         paymentMode = '';
-        selectedVehicleModel = '';
-        selectedVariants = [];
-        selectedColor = '';
       } else {
         // Show detailed error message
         if (result.details && Array.isArray(result.details)) {
@@ -748,15 +641,8 @@
     try {
       const { searchRegistrations } = await import('$lib/api');
       const result = await searchRegistrations(searchQuery.trim(), branch);
-      console.log('Search results received:', result);
       if (result.success) {
         searchResults = result.data || [];
-        console.log('Search results data:', searchResults);
-        // Log first result to see all fields
-        if (searchResults.length > 0) {
-          console.log('First result details:', searchResults[0]);
-          console.log('First result idNumber:', searchResults[0].idNumber);
-        }
       }
     } catch (err) {
       console.error('Search error:', err);
@@ -768,9 +654,7 @@
 
   // Open edit modal
   async function openEditModal(registration) {
-    console.log('=== OPENING EDIT MODAL ===');
-    console.log('Full registration data:', registration);
-    console.log('ID Number from data:', registration.idNumber);
+    console.log('Opening edit modal with:', registration);
     
     // Load cars if not already loaded
     if (cars.length === 0) {
@@ -797,39 +681,13 @@
       console.log('Sales consultant from data:', salesConsultant);
     }
     
-    // Handle purpose - ensure it's an array
-    let purposeArray = [];
-    if (registration.purpose) {
-      if (Array.isArray(registration.purpose)) {
-        purposeArray = [...registration.purpose];
-      } else if (typeof registration.purpose === 'string') {
-        // Convert string to array - handle both comma-separated and single values
-        if (registration.purpose.includes(',')) {
-          purposeArray = registration.purpose.split(',').map(p => p.trim());
-        } else {
-          purposeArray = [registration.purpose.trim()];
-        }
-      }
-    }
-    
-    // Ensure all fields are properly initialized - CRITICAL FIX
-    const idNumber = registration.idNumber || '';
-    console.log('ID Number being set:', idNumber);
-    
     editingRegistration = { 
       ...registration,
       carId: carId,
-      salesConsultant: salesConsultant,
-      purpose: purposeArray,
-      email: registration.email || '',
-      idNumber: idNumber, // Explicitly set
-      paymentMode: registration.paymentMode || '',
-      status: registration.status || 'WAITING'
+      salesConsultant: salesConsultant
     };
     
-    console.log('=== EDITING REGISTRATION OBJECT ===');
-    console.log('editingRegistration.idNumber:', editingRegistration.idNumber);
-    console.log('Full editingRegistration:', editingRegistration);
+    console.log('Editing registration set to:', editingRegistration);
     showEditModal = true;
   }
 
@@ -837,22 +695,6 @@
   function closeEditModal() {
     showEditModal = false;
     editingRegistration = null;
-  }
-
-  // Toggle purpose in edit modal
-  function toggleEditPurpose(purposeValue) {
-    if (!editingRegistration) return;
-    
-    if (!editingRegistration.purpose) {
-      editingRegistration.purpose = [];
-    }
-    
-    const index = editingRegistration.purpose.indexOf(purposeValue);
-    if (index > -1) {
-      editingRegistration.purpose = editingRegistration.purpose.filter(p => p !== purposeValue);
-    } else {
-      editingRegistration.purpose = [...editingRegistration.purpose, purposeValue];
-    }
   }
 
   // Save edited registration
@@ -868,18 +710,6 @@
       alert('Mobile number is required');
       return;
     }
-    if (!editingRegistration.purpose || editingRegistration.purpose.length === 0) {
-      alert('Please select at least one purpose');
-      return;
-    }
-    
-    // Validate ID number for test drive
-    if (editingRegistration.purpose.includes('TEST_DRIVE')) {
-      if (!editingRegistration.idNumber || !editingRegistration.idNumber.trim()) {
-        alert('ID/License number is required for Test Drive');
-        return;
-      }
-    }
 
     loading = true;
     error = '';
@@ -889,10 +719,7 @@
         fullName: editingRegistration.fullName.trim(),
         mobile: editingRegistration.mobile.trim(),
         email: editingRegistration.email?.trim() || '',
-        idNumber: editingRegistration.idNumber?.trim() || '',
-        salesConsultant: editingRegistration.salesConsultant || '',
-        purpose: editingRegistration.purpose,
-        paymentMode: editingRegistration.paymentMode?.trim() || ''
+        salesConsultant: editingRegistration.salesConsultant || ''
       };
 
       // Only include carId if it's not empty
@@ -900,20 +727,15 @@
         updateData.carId = editingRegistration.carId;
       }
 
-      console.log('=== UPDATE OPERATION ===');
-      console.log('Updating registration ID:', editingRegistration.id);
-      console.log('Update data:', updateData);
-      console.log('This will UPDATE the existing record, NOT create a new one');
+      console.log('Updating registration:', editingRegistration.id, updateData);
 
       const { updateRegistration } = await import('$lib/api');
       const result = await updateRegistration(editingRegistration.id, updateData);
 
       console.log('Update result:', result);
-      console.log('Updated record ID:', result.data?.id);
-      console.log('Confirm: Same ID?', result.data?.id === editingRegistration.id);
 
       if (result.success) {
-        alert('Registration updated successfully! No duplicates created.');
+        alert('Registration updated successfully!');
         closeEditModal();
         // Refresh search results
         if (searchQuery) {
@@ -947,11 +769,7 @@
         {#if success.hasQueue}
           <!-- Has Queue Number (Test Drive or Reservation) -->
           <div class="space-y-4">
-            <div class="text-6xl">
-              <svg class="w-24 h-24 mx-auto text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
-            </div>
+            <div class="text-6xl">Γ£ô</div>
             <h1 class="text-5xl font-bold text-gray-900 tracking-tight">You're registered</h1>
             <p class="text-xl text-gray-600">Your queue number</p>
           </div>
@@ -991,11 +809,7 @@
         {:else}
           <!-- CIS Only - No Queue Number -->
           <div class="space-y-4">
-            <div class="text-6xl">
-              <svg class="w-24 h-24 mx-auto text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
-            </div>
+            <div class="text-6xl">Γ£ô</div>
             <h1 class="text-5xl font-bold text-gray-900 tracking-tight">Information Recorded</h1>
             <p class="text-xl text-gray-600">Thank you for your interest</p>
           </div>
@@ -1031,203 +845,81 @@
         <p class="text-xl text-gray-600">Get your queue number for BYD Iloilo</p>
       </div>
 
-      <!-- Modern Search Section -->
-      <div class="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
-        <!-- Header -->
-        <div class="bg-white/80 backdrop-blur-sm px-4 py-3 border-b border-blue-100">
-          <div class="flex items-center gap-2">
-            <div class="p-1.5 bg-blue-100 rounded-lg">
-              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <h3 class="text-base font-bold text-gray-900">Search & Edit Registration</h3>
-              <p class="text-xs text-gray-500">Find and update existing registrations</p>
-            </div>
-          </div>
+      <!-- Search Section -->
+      <div class="mb-8 p-6 bg-gray-50 rounded-2xl">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Search & Edit Registration</h3>
+        <div class="flex gap-3">
+          <input
+            type="text"
+            bind:value={searchQuery}
+            on:input={handleSearch}
+            placeholder="Search by name or queue number..."
+            class="flex-1 px-4 py-3 text-base rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+          />
+          {#if loadingSearch}
+            <div class="px-4 py-3 text-gray-500">Searching...</div>
+          {/if}
         </div>
 
-        <!-- Search Input -->
-        <div class="p-4">
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
-            </div>
-            <input
-              type="text"
-              bind:value={searchQuery}
-              on:input={handleSearch}
-              placeholder="Search by name, queue number, mobile, or ID..."
-              class="w-full pl-10 pr-3 py-2.5 text-sm bg-white rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm placeholder-gray-400"
-            />
-            {#if loadingSearch}
-              <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <svg class="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Search Results -->
-          {#if searchResults.length > 0}
-            <div class="mt-3 space-y-2 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
-              {#each searchResults as result}
-                <div class="bg-white rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 overflow-hidden group">
-                  <div class="p-3">
-                    <!-- Header Row -->
-                    <div class="flex items-center justify-between gap-3 mb-2">
-                      <div class="flex items-center gap-2 min-w-0 flex-1">
-                        <h4 class="text-sm font-bold text-gray-900 truncate">{result.fullName}</h4>
-                        {#if result.queueNo}
-                          <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                            #{result.queueNo}
-                          </span>
-                        {/if}
-                        {#if result.status}
-                          <span class="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
-                            class:bg-yellow-100={result.status === 'WAITING'}
-                            class:text-yellow-700={result.status === 'WAITING'}
-                            class:bg-blue-100={result.status === 'SERVING'}
-                            class:text-blue-700={result.status === 'SERVING'}
-                            class:bg-green-100={result.status === 'COMPLETED' || result.status === 'DONE'}
-                            class:text-green-700={result.status === 'COMPLETED' || result.status === 'DONE'}
-                            class:bg-gray-100={result.status === 'CANCELLED' || result.status === 'NOSHOW'}
-                            class:text-gray-700={result.status === 'CANCELLED' || result.status === 'NOSHOW'}
-                          >
-                            {result.status}
-                          </span>
-                        {/if}
-                      </div>
-                      
-                      <!-- Edit Button -->
-                      <button
-                        type="button"
-                        on:click={() => openEditModal(result)}
-                        class="flex-shrink-0 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow flex items-center gap-1.5"
-                      >
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        Edit
-                      </button>
-                    </div>
-
-                    <!-- Info Grid - Compact -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-xs mb-2">
-                      <!-- Mobile -->
-                      <div class="flex items-center gap-1.5">
-                        <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                        <span class="text-gray-600 font-medium truncate">{result.mobile}</span>
-                      </div>
-
-                      <!-- Car Model -->
-                      <div class="flex items-center gap-1.5">
-                        <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                          <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
-                        </svg>
-                        <span class="text-gray-600 truncate">{result.model || 'No vehicle'}</span>
-                      </div>
-
-                      <!-- Sales Consultant -->
-                      {#if result.salesConsultant}
-                        <div class="flex items-center gap-1.5">
-                          <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                          </svg>
-                          <span class="text-gray-600 truncate">SC: {result.salesConsultant}</span>
-                        </div>
+        {#if searchResults.length > 0}
+          <div class="mt-4 space-y-2 max-h-64 overflow-y-auto">
+            {#each searchResults as result}
+              <div class="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center hover:border-blue-600 transition-colors">
+                <div class="flex-1">
+                  <p class="font-semibold text-gray-900">{result.fullName}</p>
+                  <p class="text-sm text-gray-600">Queue: {result.queueNo || 'N/A'} ΓÇó Mobile: {result.mobile}</p>
+                  <p class="text-sm text-gray-500">Car: {result.model || 'N/A'} ΓÇó SC: {result.salesConsultant || 'Not assigned'}</p>
+                  
+                  <!-- Status Indicators -->
+                  <div class="flex gap-2 mt-2">
+                    {#if result.purpose && Array.isArray(result.purpose)}
+                      {#if result.purpose.includes('CIS')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                          Γ£ô CIS
+                        </span>
                       {/if}
-
-                      <!-- ID Number -->
-                      {#if result.idNumber}
-                        <div class="flex items-center gap-1.5">
-                          <svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/>
-                          </svg>
-                          <span class="text-gray-600 font-mono text-xs truncate">{result.idNumber}</span>
-                        </div>
+                      {#if result.purpose.includes('TEST_DRIVE')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                          Γ£ô Test Drive
+                        </span>
                       {/if}
-                    </div>
-                    
-                    <!-- Purpose Tags - Compact -->
-                    {#if result.purpose}
-                      <div class="flex flex-wrap gap-1.5">
-                        {#if Array.isArray(result.purpose)}
-                          {#if result.purpose.includes('CIS')}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-medium">
-                              <svg class="w-2.5 h-2.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                              </svg>
-                              CIS
-                            </span>
-                          {/if}
-                          {#if result.purpose.includes('TEST_DRIVE')}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-green-100 text-green-700 text-xs font-medium">
-                              <svg class="w-2.5 h-2.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                              </svg>
-                              Test Drive
-                            </span>
-                          {/if}
-                          {#if result.purpose.includes('RESERVATION')}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 text-xs font-medium">
-                              <svg class="w-2.5 h-2.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                              </svg>
-                              Reservation
-                            </span>
-                          {/if}
-                        {:else if typeof result.purpose === 'string'}
-                          {#if result.purpose.includes('CIS')}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-medium">
-                              <svg class="w-2.5 h-2.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                              </svg>
-                              CIS
-                            </span>
-                          {/if}
-                          {#if result.purpose.includes('TEST_DRIVE')}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-green-100 text-green-700 text-xs font-medium">
-                              <svg class="w-2.5 h-2.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                              </svg>
-                              Test Drive
-                            </span>
-                          {/if}
-                          {#if result.purpose.includes('RESERVATION')}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 text-xs font-medium">
-                              <svg class="w-2.5 h-2.5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                              </svg>
-                              Reservation
-                            </span>
-                          {/if}
-                        {/if}
-                      </div>
+                      {#if result.purpose.includes('RESERVATION')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-medium">
+                          Γ£ô Reservation
+                        </span>
+                      {/if}
+                    {:else if typeof result.purpose === 'string'}
+                      {#if result.purpose.includes('CIS')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                          Γ£ô CIS
+                        </span>
+                      {/if}
+                      {#if result.purpose.includes('TEST_DRIVE')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                          Γ£ô Test Drive
+                        </span>
+                      {/if}
+                      {#if result.purpose.includes('RESERVATION')}
+                        <span class="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-medium">
+                          Γ£ô Reservation
+                        </span>
+                      {/if}
                     {/if}
                   </div>
                 </div>
-              {/each}
-            </div>
-          {:else if searchQuery && !loadingSearch}
-            <!-- No Results -->
-            <div class="mt-4 text-center py-6">
-              <svg class="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              <p class="text-sm text-gray-500 font-medium">No registrations found</p>
-              <p class="text-xs text-gray-400 mt-1">Try a different search term</p>
-            </div>
-          {/if}
-        </div>
+                <button
+                  type="button"
+                  on:click={() => openEditModal(result)}
+                  class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-full hover:bg-blue-700 transition-colors"
+                >
+                  Edit
+                </button>
+              </div>
+            {/each}
+          </div>
+        {:else if searchQuery && !loadingSearch}
+          <p class="mt-4 text-sm text-gray-500 text-center">No results found</p>
+        {/if}
       </div>
 
       {#if error}
@@ -1290,29 +982,6 @@
             placeholder="your.email@example.com"
           />
         </div>
-
-        <!-- ID/License Number (shown when Test Drive is selected) -->
-        {#if purposes.includes('TEST_DRIVE')}
-          <div class="space-y-2" transition:scale>
-            <label for="idNumber" class="block text-sm font-semibold text-gray-900">
-              ID/License Number <span class="text-red-600">*</span>
-            </label>
-            <input
-              id="idNumber"
-              type="text"
-              bind:value={idNumber}
-              required={purposes.includes('TEST_DRIVE')}
-              class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
-              placeholder="N01-123456789-1"
-            />
-            <p class="text-xs text-gray-500 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-              </svg>
-              <span class="text-green-600 font-medium">✓ ID: {idNumber || 'Not entered yet'}</span>
-            </p>
-          </div>
-        {/if}
 
         <!-- Vehicle Model -->
         <div class="space-y-2">
@@ -1401,83 +1070,6 @@
               </button>
             {/each}
           </div>
-          
-          <!-- Test Drive Information Box -->
-          {#if purposes.includes('TEST_DRIVE')}
-            <div class="mt-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-4" transition:scale>
-              <div class="flex items-start gap-3">
-                <div class="flex-shrink-0">
-                  <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <h4 class="text-sm font-semibold text-gray-900 mb-1">Test Drive Information</h4>
-                  <p class="text-sm text-gray-600">
-                    <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                    </svg>
-                    Driver's license and waiver documents are stored separately. Contact staff to update these documents.
-                  </p>
-                  {#if idFrontImage && idBackImage && signatureData}
-                    <div class="mt-2 flex items-center gap-2 text-sm text-green-700">
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                      </svg>
-                      <span class="font-medium">Documents uploaded successfully</span>
-                    </div>
-                  {:else}
-                    <div class="mt-2 flex items-center gap-2 text-sm text-amber-700">
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                      </svg>
-                      <span class="font-medium">Documents required - modal will appear on submit</span>
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            </div>
-          {/if}
-          
-          <!-- Reservation Information Box -->
-          {#if purposes.includes('RESERVATION')}
-            <div class="mt-4 bg-purple-50 border-2 border-purple-200 rounded-xl p-4" transition:scale>
-              <div class="flex items-start gap-3">
-                <div class="flex-shrink-0">
-                  <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                    <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/>
-                  </svg>
-                </div>
-                <div class="flex-1">
-                  <h4 class="text-sm font-semibold text-gray-900 mb-1">Reservation Information</h4>
-                  <p class="text-sm text-gray-600">
-                    <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                    </svg>
-                    Government ID documents and vehicle preferences are stored separately. Contact staff to update these documents.
-                  </p>
-                  {#if paymentMode && (govId1Front && govId1Back) || (govId2Front && govId2Back)}
-                    <div class="mt-2 flex items-center gap-2 text-sm text-green-700">
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                      </svg>
-                      <span class="font-medium">Documents uploaded successfully</span>
-                    </div>
-                  {:else}
-                    <div class="mt-2 flex items-center gap-2 text-sm text-amber-700">
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                      </svg>
-                      <span class="font-medium">Documents required - modal will appear on submit</span>
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            </div>
-          {/if}
-          
           {#if validationErrors.purposes}
             <p class="text-sm text-red-600">{validationErrors.purposes}</p>
           {/if}
@@ -1525,12 +1117,9 @@
                     <button
                       type="button"
                       on:click={() => openCamera('testdrive-front')}
-                      class="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex flex-col items-center"
+                      class="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                     >
-                      <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      </svg>
+                      <div class="text-3xl mb-1">≡ƒô╖</div>
                       <div>Capture with Camera</div>
                     </button>
                     <div class="text-center text-sm text-gray-500">or</div>
@@ -1570,12 +1159,9 @@
                     <button
                       type="button"
                       on:click={() => openCamera('testdrive-back')}
-                      class="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex flex-col items-center"
+                      class="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                     >
-                      <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      </svg>
+                      <div class="text-3xl mb-1">≡ƒô╖</div>
                       <div>Capture with Camera</div>
                     </button>
                     <div class="text-center text-sm text-gray-500">or</div>
@@ -1820,12 +1406,9 @@
                         <button
                           type="button"
                           on:click={() => openCamera('id1-front')}
-                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex flex-col items-center"
+                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                         >
-                          <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                          </svg>
+                          <div class="text-2xl mb-1">≡ƒô╖</div>
                           <div class="text-sm">Capture</div>
                         </button>
                         <input
@@ -1863,12 +1446,9 @@
                         <button
                           type="button"
                           on:click={() => openCamera('id1-back')}
-                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex flex-col items-center"
+                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                         >
-                          <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                          </svg>
+                          <div class="text-2xl mb-1">≡ƒô╖</div>
                           <div class="text-sm">Capture</div>
                         </button>
                         <input
@@ -1913,12 +1493,9 @@
                         <button
                           type="button"
                           on:click={() => openCamera('id2-front')}
-                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex flex-col items-center"
+                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                         >
-                          <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                          </svg>
+                          <div class="text-2xl mb-1">≡ƒô╖</div>
                           <div class="text-sm">Capture</div>
                         </button>
                         <input
@@ -1956,12 +1533,9 @@
                         <button
                           type="button"
                           on:click={() => openCamera('id2-back')}
-                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex flex-col items-center"
+                          class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
                         >
-                          <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                          </svg>
+                          <div class="text-2xl mb-1">≡ƒô╖</div>
                           <div class="text-sm">Capture</div>
                         </button>
                         <input
@@ -2023,24 +1597,14 @@
                 </div>
               {:else}
                 <div class="text-center py-8">
-                  <div class="text-5xl mb-3">
-                    <svg class="w-20 h-20 mx-auto text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                      <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
-                    </svg>
-                  </div>
+                  <div class="text-5xl mb-3">≡ƒÜù</div>
                   <p class="text-lg font-semibold text-gray-900">{selectedVehicleModel}</p>
                   <p class="text-sm text-gray-500 mt-1">Preview not available</p>
                 </div>
               {/if}
             {:else}
               <div class="text-center py-8">
-                <div class="text-5xl mb-3">
-                  <svg class="w-20 h-20 mx-auto text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
-                  </svg>
-                </div>
+                <div class="text-5xl mb-3">≡ƒôï</div>
                 <p class="text-lg font-semibold text-gray-500">Not yet selected car model</p>
                 <p class="text-sm text-gray-400 mt-1">Please select a vehicle model below</p>
               </div>
@@ -2190,41 +1754,16 @@
 <!-- Edit Registration Modal -->
 {#if showEditModal && editingRegistration}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" transition:fade>
-    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" transition:scale>
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" transition:scale>
       <div class="p-8">
-        <div class="flex justify-between items-start mb-6">
-          <div>
-            <h2 class="text-3xl font-bold text-gray-900">Edit Registration</h2>
-            <p class="text-sm text-gray-500 mt-1">
-              Editing record ID: <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{editingRegistration.id}</span>
-              {#if editingRegistration.queueNo}
-                • Queue: <span class="font-semibold">{editingRegistration.queueNo}</span>
-              {/if}
-            </p>
-            <p class="text-xs text-blue-600 mt-1 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-              </svg>
-              Changes will update this existing record only - no duplicates will be created
-            </p>
-          </div>
-          <button
-            type="button"
-            on:click={closeEditModal}
-            class="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Edit Registration</h2>
         
         <div class="space-y-6">
           <!-- Queue Number (Read-only) -->
           {#if editingRegistration.queueNo}
             <div class="space-y-2">
               <label class="block text-sm font-semibold text-gray-900">Queue Number</label>
-              <div class="px-4 py-4 text-lg rounded-xl bg-gray-100 text-gray-700 font-bold">
+              <div class="px-4 py-4 text-lg rounded-xl bg-gray-100 text-gray-700">
                 {editingRegistration.queueNo}
               </div>
             </div>
@@ -2261,135 +1800,7 @@
               class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
               placeholder="your.email@example.com"
             />
-            {#if !editingRegistration.email || editingRegistration.email.trim() === ''}
-              <p class="text-xs text-gray-500 italic">No email address provided</p>
-            {/if}
           </div>
-
-          <!-- ID Number -->
-          <div class="space-y-2">
-            <label class="block text-sm font-semibold text-gray-900">
-              ID/License Number 
-              {#if editingRegistration.purpose && editingRegistration.purpose.includes('TEST_DRIVE')}
-                <span class="text-red-600">*</span>
-              {:else}
-                <span class="text-gray-500 font-normal">(Optional)</span>
-              {/if}
-            </label>
-            <input
-              type="text"
-              bind:value={editingRegistration.idNumber}
-              class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
-              placeholder="License or ID number (e.g., N01-912723482395-4)"
-            />
-            {#if !editingRegistration.idNumber || editingRegistration.idNumber.trim() === ''}
-              <p class="text-xs text-amber-600 flex items-center gap-1">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                </svg>
-                No ID number in registration record. If this was a test drive, please enter the license number here.
-              </p>
-            {:else}
-              <p class="text-xs text-green-600 flex items-center gap-1">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                </svg>
-                ID: {editingRegistration.idNumber}
-              </p>
-            {/if}
-          </div>
-
-          <!-- Purpose Selection -->
-          <div class="space-y-2">
-            <label class="block text-sm font-semibold text-gray-900">
-              Purpose (Select one or more)
-            </label>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {#each purposeOptions as purposeOption}
-                <button
-                  type="button"
-                  on:click={() => toggleEditPurpose(purposeOption.value)}
-                  class="px-4 py-4 rounded-xl border-2 transition-all text-left"
-                  class:border-blue-600={editingRegistration.purpose && editingRegistration.purpose.includes(purposeOption.value)}
-                  class:bg-blue-50={editingRegistration.purpose && editingRegistration.purpose.includes(purposeOption.value)}
-                  class:border-gray-300={!editingRegistration.purpose || !editingRegistration.purpose.includes(purposeOption.value)}
-                  class:hover:border-gray-400={!editingRegistration.purpose || !editingRegistration.purpose.includes(purposeOption.value)}
-                >
-                  <div class="flex items-center gap-3">
-                    <div class="w-5 h-5 rounded border-2 flex items-center justify-center"
-                      class:border-blue-600={editingRegistration.purpose && editingRegistration.purpose.includes(purposeOption.value)}
-                      class:bg-blue-600={editingRegistration.purpose && editingRegistration.purpose.includes(purposeOption.value)}
-                      class:border-gray-300={!editingRegistration.purpose || !editingRegistration.purpose.includes(purposeOption.value)}
-                    >
-                      {#if editingRegistration.purpose && editingRegistration.purpose.includes(purposeOption.value)}
-                        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                      {/if}
-                    </div>
-                    <span class="font-medium text-gray-900 text-sm">{purposeOption.label}</span>
-                  </div>
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Test Drive Specific Fields -->
-          {#if editingRegistration.purpose && editingRegistration.purpose.includes('TEST_DRIVE')}
-            <div class="border-2 border-blue-200 rounded-xl p-6 bg-blue-50">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                  <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
-                </svg>
-                Test Drive Information
-              </h3>
-              <p class="text-sm text-gray-600 mb-4">
-                <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                </svg>
-                Driver's license and waiver documents are stored separately. Contact staff to update these documents.
-              </p>
-            </div>
-          {/if}
-
-          <!-- Reservation Specific Fields -->
-          {#if editingRegistration.purpose && editingRegistration.purpose.includes('RESERVATION')}
-            <div class="border-2 border-purple-200 rounded-xl p-6 bg-purple-50">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
-                  <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/>
-                </svg>
-                Reservation Information
-              </h3>
-              
-              <!-- Payment Mode -->
-              <div class="space-y-2 mb-4">
-                <label class="block text-sm font-semibold text-gray-900">Payment Mode</label>
-                <select
-                  bind:value={editingRegistration.paymentMode}
-                  class="w-full px-4 py-3 text-base rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all bg-white"
-                >
-                  <option value="">Select payment mode</option>
-                  <option value="CASH">Cash</option>
-                  <option value="FINANCING">Financing</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CHECK">Check</option>
-                </select>
-                {#if !editingRegistration.paymentMode || editingRegistration.paymentMode.trim() === ''}
-                  <p class="text-xs text-gray-500 italic">No payment mode selected</p>
-                {/if}
-              </div>
-
-              <p class="text-sm text-gray-600">
-                <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-                </svg>
-                Government ID documents and vehicle preferences are stored separately. Contact staff to update these documents.
-              </p>
-            </div>
-          {/if}
 
           <!-- Vehicle Model -->
           <div class="space-y-2">
@@ -2403,16 +1814,6 @@
                 <option value={car.carId}>{formatCarName(car.model)}</option>
               {/each}
             </select>
-            {#if !editingRegistration.carId || editingRegistration.carId.trim() === ''}
-              <p class="text-xs text-gray-500 italic">No vehicle selected</p>
-            {:else if editingRegistration.model}
-              <p class="text-xs text-green-600 flex items-center gap-1">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                </svg>
-                Current: {editingRegistration.model}
-              </p>
-            {/if}
           </div>
 
           <!-- Sales Consultant -->
@@ -2422,36 +1823,12 @@
               bind:value={editingRegistration.salesConsultant}
               class="w-full px-4 py-4 text-lg rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all bg-white"
             >
-              <option value="">Select a sales consultant</option>
+              <option value="" disabled>Select a sales consultant</option>
               {#each salesConsultants as consultant}
                 <option value={consultant}>{consultant}</option>
               {/each}
             </select>
-            {#if !editingRegistration.salesConsultant || editingRegistration.salesConsultant.trim() === ''}
-              <p class="text-xs text-gray-500 italic">No sales consultant assigned</p>
-            {/if}
           </div>
-
-          <!-- Status (Read-only display) -->
-          {#if editingRegistration.status}
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-900">Current Status</label>
-              <div class="px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
-                  class:bg-yellow-100={editingRegistration.status === 'WAITING'}
-                  class:text-yellow-800={editingRegistration.status === 'WAITING'}
-                  class:bg-blue-100={editingRegistration.status === 'SERVING'}
-                  class:text-blue-800={editingRegistration.status === 'SERVING'}
-                  class:bg-green-100={editingRegistration.status === 'COMPLETED'}
-                  class:text-green-800={editingRegistration.status === 'COMPLETED'}
-                  class:bg-red-100={editingRegistration.status === 'CANCELLED'}
-                  class:text-red-800={editingRegistration.status === 'CANCELLED'}
-                >
-                  {editingRegistration.status}
-                </span>
-              </div>
-            </div>
-          {/if}
         </div>
 
         <div class="flex gap-4 mt-8">
@@ -2508,13 +1885,9 @@
           <button
             type="button"
             on:click={capturePhoto}
-            class="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+            class="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            </svg>
-            Capture
+            ≡ƒô╖ Capture
           </button>
         </div>
       </div>
