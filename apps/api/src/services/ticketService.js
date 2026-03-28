@@ -160,6 +160,12 @@ export async function markTicketDone(branch, queueNo) {
     throw new Error('TICKET_NOT_FOUND');
   }
 
+  // If ticket is already DONE, just return it (idempotent operation)
+  if (ticket.status === 'DONE') {
+    console.log(`Ticket ${queueNo} is already marked as DONE, skipping...`);
+    return ticket;
+  }
+
   if (!isValidTransition(ticket.status, 'DONE')) {
     throw new Error(`INVALID_TRANSITION: Cannot move ${ticket.status} to DONE`);
   }

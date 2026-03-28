@@ -318,10 +318,11 @@ export async function markDone(req, res) {
     }
 
     if (error.message.startsWith('INVALID_TRANSITION')) {
+      const errorMsg = error.message.replace('INVALID_TRANSITION: ', '');
       return res.status(400).json({
         success: false,
         error: 'Invalid state transition',
-        message: error.message.replace('INVALID_TRANSITION: ', '')
+        message: errorMsg + '. This ticket may have already been processed. Please refresh the page.'
       });
     }
 

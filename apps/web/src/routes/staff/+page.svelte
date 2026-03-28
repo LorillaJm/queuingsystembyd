@@ -144,19 +144,22 @@
       const data = await response.json();
       if (data.success) {
         showSuccess(`${queueNo} marked as done!`);
-        fetchTickets();
+        // Force refresh to get latest data
+        await fetchTickets();
       } else {
         console.error('Mark done error:', data);
         // Show user-friendly error message
         let errorMsg = data.message || data.error || 'Failed to mark as done';
         
-        // If there are validation details, show them
-        if (data.details && Array.isArray(data.details)) {
-          const validationErrors = data.details.map(d => `${d.field}: ${d.message}`).join(', ');
-          errorMsg += `\nValidation errors: ${validationErrors}`;
+        // If it's a state transition error, suggest refresh
+        if (errorMsg.includes('Cannot move') || errorMsg.includes('already been processed')) {
+          errorMsg += '\n\nRefreshing the page now...';
+          alert(errorMsg);
+          // Auto-refresh after showing error
+          await fetchTickets();
+        } else {
+          alert(errorMsg);
         }
-        
-        alert(errorMsg);
       }
     } catch (err) {
       console.error('Mark done exception:', err);
